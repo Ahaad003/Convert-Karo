@@ -26,7 +26,11 @@
     color:var(--ink);
     font-family:'Poppins',sans-serif;
     min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    text-rendering:optimizeLegibility;
   }
+  img, svg, canvas{ image-rendering:-webkit-optimize-contrast; }
 
   header{
     background:var(--bg);border-bottom:1px solid var(--line);
@@ -313,6 +317,7 @@
     <div class="dropzone">
       <label class="bigbtn" for="img2pdfInput">Images Choose Karo</label>
       <input type="file" id="img2pdfInput" accept="image/*" multiple style="position:absolute;width:1px;height:1px;opacity:0;">
+      <p class="hint" style="margin-top:14px;"><label><input type="checkbox" id="img2pdfEnhance"> Sharpen/Enhance (dhundhli photo ko crisp karo)</label></p>
     </div>
     <div class="filequeue" id="img2pdfQueue"></div>
     <div class="actionrow">
@@ -324,10 +329,11 @@
 
   <div class="toolpage" id="tool-pdf2img">
     <div class="back" onclick="goHome()">← Wapas</div>
-    <div class="toolhead"><h2>PDF to JPG</h2><p>Har PDF page ek JPG image ban jayega.</p></div>
+    <div class="toolhead"><h2>PDF to JPG</h2><p>Har PDF page ek JPG image ban jayega, high resolution mein.</p></div>
     <div class="dropzone">
       <label class="bigbtn" for="pdf2imgInput">PDF File Choose Karo</label>
       <input type="file" id="pdf2imgInput" accept=".pdf" style="position:absolute;width:1px;height:1px;opacity:0;">
+      <p class="hint" style="margin-top:14px;"><label><input type="checkbox" id="pdf2imgEnhance" checked> Sharpen/Enhance (dhundhli image ko crisp karo)</label></p>
     </div>
     <div class="status" id="pdf2imgStatus"></div>
     <div class="resultlist" id="pdf2imgResult"></div>
@@ -540,14 +546,29 @@ document.getElementById('img2pdfInput').addEventListener('change', e=>{
 });
 document.getElementById('img2pdfBtn').addEventListener('click', async ()=>{
   const statusEl=document.getElementById('img2pdfStatus');
+  const enhance = document.getElementById('img2pdfEnhance').checked;
   statusEl.textContent='PDF ban raha hai...';
   try{
     const outDoc = await PDFDocument.create();
     for(const f of img2pdfFiles){
-      const bytes = await f.arrayBuffer();
+      let embedBytes = await f.arrayBuffer();
+      let mimeType = f.type;
+      if(enhance){
+        statusEl.textContent='Enhance ho raha hai...';
+        const bmp = await createImageBitmap(new Blob([embedBytes], {type:f.type}));
+        const canvas=document.createElement('canvas');
+        canvas.width=bmp.width; canvas.height=bmp.height;
+        const ctx=canvas.getContext('2d');
+        ctx.drawImage(bmp,0,0);
+        sharpenCanvas(canvas);
+        const outMime = f.type==='image/png' ? 'image/png' : 'image/jpeg';
+        const outDataUrl = canvas.toDataURL(outMime, 0.99);
+        embedBytes = await (await fetch(outDataUrl)).arrayBuffer();
+        mimeType = outMime;
+      }
       let img;
-      if(f.type==='image/png') img = await outDoc.embedPng(bytes);
-      else img = await outDoc.embedJpg(bytes);
+      if(mimeType==='image/png') img = await outDoc.embedPng(embedBytes);
+      else img = await outDoc.embedJpg(embedBytes);
       const page = outDoc.addPage([img.width, img.height]);
       page.drawImage(img, {x:0, y:0, width:img.width, height:img.height});
     }
@@ -570,12 +591,16 @@ document.getElementById('pdf2imgInput').addEventListener('change', async e=>{
     for(let i=1;i<=pdf.numPages;i++){
       statusEl.textContent=`Page ${i}/${pdf.numPages} process ho raha hai...`;
       const page=await pdf.getPage(i);
-      const viewport=page.getViewport({scale:2.2});
+      const viewport=page.getViewport({scale:2.8});
       const canvas=document.createElement('canvas');
       canvas.width=viewport.width; canvas.height=viewport.height;
       const ctx=canvas.getContext('2d');
       await page.render({canvasContext:ctx, viewport}).promise;
-      const dataUrl=canvas.toDataURL('image/jpeg',0.97);
+      if(document.getElementById('pdf2imgEnhance').checked){
+        statusEl.textContent=`Page ${i}/${pdf.numPages} enhance ho raha hai...`;
+        sharpenCanvas(canvas);
+      }
+      const dataUrl=canvas.toDataURL('image/jpeg',0.99);
       const row=document.createElement('div');
       row.className='result-item';
       row.innerHTML=`<span>page-${i}.jpg</span><a href="${dataUrl}" download="page-${i}.jpg">Download ⬇</a>`;
@@ -584,6 +609,40 @@ document.getElementById('pdf2imgInput').addEventListener('change', async e=>{
     statusEl.textContent=`Done — ${pdf.numPages} page(s) ready.`;
   }catch(err){ statusEl.textContent='Error: PDF read nahi ho payi.'; }
 });
+
+// ---------- IMAGE ENHANCE (sharpen filter) ----------
+// Applies a light unsharp-mask style convolution to make edges/text crisper.
+// Note: this improves clarity on slightly soft images, it cannot fix heavy
+// blur or recreate detail that was never captured — that needs AI upscaling.
+function sharpenCanvas(canvas){
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const src = ctx.getImageData(0,0,w,h);
+  const dst = ctx.createImageData(w,h);
+  const kernel = [0,-0.5,0, -0.5,3,-0.5, 0,-0.5,0]; // mild sharpen kernel
+  const sd = src.data, dd = dst.data;
+  for(let y=0; y<h; y++){
+    for(let x=0; x<w; x++){
+      const i = (y*w+x)*4;
+      if(x===0||y===0||x===w-1||y===h-1){
+        dd[i]=sd[i]; dd[i+1]=sd[i+1]; dd[i+2]=sd[i+2]; dd[i+3]=sd[i+3];
+        continue;
+      }
+      for(let c=0;c<3;c++){
+        let sum=0, k=0;
+        for(let ky=-1;ky<=1;ky++){
+          for(let kx=-1;kx<=1;kx++){
+            const idx = ((y+ky)*w+(x+kx))*4+c;
+            sum += sd[idx]*kernel[k]; k++;
+          }
+        }
+        dd[i+c] = Math.max(0, Math.min(255, sum));
+      }
+      dd[i+3]=sd[i+3];
+    }
+  }
+  ctx.putImageData(dst,0,0);
+}
 
 function wireBackendTool(inputId, statusId, resultId, endpoint, outExt){
   document.getElementById(inputId).addEventListener('change', async e=>{

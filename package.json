@@ -1,0 +1,19 @@
+{
+  "name": "convert-karo",
+  "version": "1.0.0",
+  "description": "Free online file converter - PDF, Word, Image conversion",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "pdf-lib": "^1.17.1",
+    "libreoffice-convert": "^1.6.0",
+    "cors": "^2.8.5"
+  }
+}

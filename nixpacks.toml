@@ -1,0 +1,11 @@
+# This tells Railway's build system (Nixpacks) to install LibreOffice
+# so that PDF <-> Word conversion works on the server.
+
+[phases.setup]
+nixPkgs = ["nodejs_18", "libreoffice"]
+
+[phases.install]
+cmds = ["npm install"]
+
+[start]
+cmd = "npm start"

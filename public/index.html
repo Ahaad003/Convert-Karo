@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ConvertKaro — Free PDF & File Tools</title>
+<meta name="description" content="PDF merge, split, compress, convert — sab free online. ConvertKaro par PDF to Word, Word to PDF, images to PDF sab free hai.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root{
+    --red:#e63946;
+    --red-deep:#c1121f;
+    --red-pale:#fdecee;
+    --ink:#1d1d1f;
+    --gray:#6b7280;
+    --line:#e5e7eb;
+    --bg:#ffffff;
+    --bg-soft:#f7f8fa;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--bg-soft);
+    color:var(--ink);
+    font-family:'Poppins',sans-serif;
+    min-height:100vh;
+  }
+
+  header{
+    background:var(--bg);border-bottom:1px solid var(--line);
+    padding:14px 18px;position:sticky;top:0;z-index:20;
+  }
+  .navwrap{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .brand{display:flex;align-items:center;gap:9px;cursor:pointer;}
+  .heart{width:24px;height:24px;flex-shrink:0;}
+  .brand .name{
+    font-weight:700;font-size:1.15rem;letter-spacing:-0.01em;
+    display:flex;flex-direction:column;line-height:1;
+  }
+  .brand .name .l1{font-family:'JetBrains Mono',monospace;font-size:0.6rem;letter-spacing:0.14em;color:var(--gray);font-weight:500;text-transform:uppercase;}
+  .brand .name .l2{font-size:1.2rem;font-weight:800;}
+  .brand .name .l2 .k{
+    background:linear-gradient(90deg,var(--red),var(--red-deep));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+
+  .langsel{
+    font-family:'Poppins',sans-serif;font-size:0.75rem;font-weight:500;
+    border:1px solid var(--line);border-radius:6px;padding:6px 8px;
+    background:var(--bg);color:var(--ink);cursor:pointer;
+  }
+
+  nav.toolnav{
+    display:flex;gap:4px;overflow-x:auto;margin-top:12px;
+    padding-bottom:2px;-webkit-overflow-scrolling:touch;
+  }
+  nav.toolnav::-webkit-scrollbar{display:none;}
+  .navlink{
+    font-size:0.78rem;font-weight:500;color:var(--gray);
+    padding:7px 12px;white-space:nowrap;border-radius:6px;cursor:pointer;
+    transition:.15s;
+  }
+  .navlink:hover, .navlink.active{background:var(--red-pale);color:var(--red-deep);}
+
+  main{max-width:920px;margin:0 auto;padding:24px 16px 60px;}
+  .hero{text-align:center;padding:8px 0 22px;}
+  .hero h1{font-size:1.55rem;font-weight:700;line-height:1.3;}
+  .hero p{color:var(--gray);font-size:0.86rem;margin-top:10px;line-height:1.6;max-width:520px;margin-left:auto;margin-right:auto;}
+
+  .filterpills{display:flex;gap:7px;overflow-x:auto;padding:18px 0 4px;-webkit-overflow-scrolling:touch;}
+  .filterpills::-webkit-scrollbar{display:none;}
+  .fpill{
+    font-size:0.75rem;font-weight:600;padding:8px 15px;border-radius:100px;
+    border:1px solid var(--line);white-space:nowrap;cursor:pointer;color:var(--ink);
+    background:var(--bg);transition:.15s;
+  }
+  .fpill.sel{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+  .cat-title{
+    font-size:0.72rem;font-weight:700;color:var(--gray);
+    letter-spacing:0.06em;text-transform:uppercase;
+    margin:26px 0 12px;
+  }
+  .grid{display:flex;flex-wrap:wrap;gap:10px;}
+  .tile{
+    background:var(--bg);border:1px solid var(--line);border-radius:12px;
+    padding:14px;cursor:pointer;transition:.15s;
+    display:flex;flex-direction:column;gap:8px;
+    flex:1 1 calc(50% - 5px);min-width:150px;
+  }
+  .tile:hover{border-color:var(--red);box-shadow:0 4px 14px rgba(230,57,70,0.1);}
+  .tile .ic{
+    font-size:1.15rem;flex-shrink:0;width:34px;height:34px;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:8px;color:#fff;
+  }
+  .tile[data-tool="merge"] .ic, .tile[data-tool="split"] .ic, .tile[data-tool="remove"] .ic{background:linear-gradient(135deg,#f97316,#e63946);}
+  .tile[data-tool="compress"] .ic{background:linear-gradient(135deg,#22c55e,#15803d);}
+  .tile[data-tool="img2pdf"] .ic{background:linear-gradient(135deg,#eab308,#ca8a04);}
+  .tile[data-tool="word2pdf"] .ic, .tile[data-tool="pdf2word"] .ic{background:linear-gradient(135deg,#3b82f6,#1d4ed8);}
+  .tile[data-tool="excel2pdf"] .ic, .tile[data-tool="pdf2excel"] .ic{background:linear-gradient(135deg,#22c55e,#15803d);}
+  .tile[data-tool="pdf2img"] .ic{background:linear-gradient(135deg,#eab308,#ca8a04);}
+  .tile[data-tool="editpdf"] .ic{background:linear-gradient(135deg,#a855f7,#7e22ce);}
+  .tile .ttext{flex:1;}
+  .tile .tname{font-size:0.88rem;font-weight:700;margin-bottom:4px;}
+  .tile .tdesc{font-size:0.74rem;color:var(--gray);line-height:1.4;}
+  .tile.locked{opacity:0.65;}
+  .tile .badge{
+    font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:var(--red-deep);
+    background:var(--red-pale);padding:2px 6px;border-radius:4px;width:fit-content;margin-top:2px;
+  }
+
+  .toolpage{display:none;}
+  .toolpage.active{display:block;}
+  .back{
+    font-size:0.8rem;color:var(--gray);cursor:pointer;display:inline-flex;
+    align-items:center;gap:4px;margin-bottom:18px;
+  }
+  .back:hover{color:var(--red-deep);}
+  .toolhead{text-align:center;margin-bottom:22px;}
+  .toolhead h2{font-size:1.4rem;font-weight:700;}
+  .toolhead p{color:var(--gray);font-size:0.86rem;margin-top:6px;max-width:440px;margin-left:auto;margin-right:auto;}
+
+  .dropzone{
+    border:2px dashed var(--line);border-radius:12px;
+    padding:38px 16px;text-align:center;background:var(--bg);
+    max-width:480px;margin:0 auto;position:relative;
+  }
+  .bigbtn{
+    display:inline-block;padding:14px 30px;background:var(--red);
+    color:#fff;font-weight:700;font-size:0.95rem;border-radius:8px;
+    border:none;cursor:pointer;box-shadow:0 4px 12px rgba(230,57,70,0.3);
+  }
+  .bigbtn:active{background:var(--red-deep);}
+  .dropzone p.hint{font-size:0.78rem;color:var(--gray);margin-top:10px;}
+
+  .filequeue{max-width:480px;margin:16px auto 0;}
+  .qitem{
+    display:flex;justify-content:space-between;align-items:center;
+    background:var(--bg);border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;margin-bottom:8px;font-size:0.82rem;
+  }
+  .qitem .rm{color:var(--red);cursor:pointer;font-weight:700;padding:0 6px;}
+
+  .actionrow{max-width:480px;margin:18px auto 0;text-align:center;}
+  .actionrow input[type=text]{
+    width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;
+    font-family:'Poppins',sans-serif;font-size:0.85rem;margin-bottom:12px;
+  }
+  .status{font-size:0.8rem;color:var(--red-deep);margin-top:10px;text-align:center;}
+  .resultlist{max-width:480px;margin:16px auto 0;}
+  .result-item{
+    display:flex;justify-content:space-between;align-items:center;
+    background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;
+    padding:10px 12px;margin-bottom:8px;font-size:0.82rem;
+  }
+  .result-item a{color:var(--red-deep);font-weight:600;text-decoration:none;}
+
+  .unavail{
+    max-width:480px;margin:0 auto;background:var(--red-pale);
+    border:1px dashed var(--red);border-radius:10px;padding:20px;text-align:center;
+  }
+  .unavail p{font-size:0.82rem;color:#7a1f26;line-height:1.5;}
+
+  /* ---------- FOOTER STATS (govt-site style counter) ---------- */
+  footer{
+    margin-top:50px;border-top:2px solid var(--ink);background:var(--ink);
+    color:#fff;padding:26px 18px 20px;
+  }
+  .footwrap{max-width:920px;margin:0 auto;}
+  .foottitle{
+    font-family:'JetBrains Mono',monospace;font-size:0.68rem;
+    letter-spacing:0.1em;text-transform:uppercase;color:#9ca3af;
+    text-align:center;margin-bottom:16px;
+  }
+  .counters{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;}
+  .counterbox{
+    background:#111;border:1px solid #333;border-radius:6px;
+    padding:12px 18px;text-align:center;min-width:100px;
+  }
+  .counterbox .num{
+    font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1.3rem;
+    color:#4ade80;letter-spacing:0.02em;
+  }
+  .counterbox .lbl{font-size:0.65rem;color:#9ca3af;margin-top:4px;text-transform:uppercase;letter-spacing:0.04em;}
+  .footnote{text-align:center;font-size:0.68rem;color:#6b7280;margin-top:16px;line-height:1.6;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="navwrap">
+    <div class="brand" onclick="goHome()">
+      <svg class="heart" viewBox="0 0 32 29" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 28.5C16 28.5 1 19.5 1 9.8C1 4.9 4.9 1 9.7 1C12.7 1 15 2.5 16 4.8C17 2.5 19.3 1 22.3 1C27.1 1 31 4.9 31 9.8C31 19.5 16 28.5 16 28.5Z" fill="#e63946" stroke="#c1121f" stroke-width="1"/>
+      </svg>
+      <div class="name">
+        <div class="l2">Convert<span class="k">Karo</span></div>
+      </div>
+    </div>
+    <select class="langsel" id="langSelect" onchange="setLang(this.value)">
+      <option value="hi">हिंदी</option>
+      <option value="en">English</option>
+      <option value="hg" selected>Hinglish</option>
+    </select>
+  </div>
+  <nav class="toolnav" id="topnav">
+    <div class="navlink" onclick="openTool('merge')">Merge PDF</div>
+    <div class="navlink" onclick="openTool('split')">Split PDF</div>
+    <div class="navlink" onclick="openTool('compress')">Compress PDF</div>
+    <div class="navlink" onclick="openTool('pdf2word')">PDF to Word</div>
+    <div class="navlink" onclick="openTool('word2pdf')">Word to PDF</div>
+    <div class="navlink" onclick="goHome()">All Tools</div>
+  </nav>
+</header>
+
+<main>
+
+  <div id="home">
+    <div class="hero">
+      <h1 id="heroTitle">Ek jagah, PDF ka har kaam</h1>
+      <p id="heroSub">Simple aur easy — bas file upload karo aur kaam ho jaye.</p>
+    </div>
+
+    <div class="filterpills" id="filterPills">
+      <div class="fpill sel" data-cat="all" onclick="filterCat('all')">All</div>
+      <div class="fpill" data-cat="organize" onclick="filterCat('organize')">Organize PDF</div>
+      <div class="fpill" data-cat="optimize" onclick="filterCat('optimize')">Optimize PDF</div>
+      <div class="fpill" data-cat="to" onclick="filterCat('to')">Convert to PDF</div>
+      <div class="fpill" data-cat="from" onclick="filterCat('from')">Convert from PDF</div>
+      <div class="fpill" data-cat="edit" onclick="filterCat('edit')">Edit PDF</div>
+    </div>
+
+    <div class="cat-title" data-cat="organize">Organize PDF</div>
+    <div class="grid" data-cat="organize">
+      <div class="tile" data-tool="merge" onclick="openTool('merge')"><div class="ic">🧩</div><div class="ttext"><div class="tname">Merge PDF</div><div class="tdesc">Kai PDF files ko jis order mein chaho usi order mein ek PDF mein jodo.</div></div></div>
+      <div class="tile" data-tool="split" onclick="openTool('split')"><div class="ic">✂️</div><div class="ttext"><div class="tname">Split PDF</div><div class="tdesc">Ek PDF ke har page ko alag file bana do, ya jo chaho wo page nikaal lo.</div></div></div>
+      <div class="tile" data-tool="remove" onclick="openTool('remove')"><div class="ic">🗑️</div><div class="ttext"><div class="tname">Remove Pages</div><div class="tdesc">PDF mein se faltu ya galat pages hatao, baaki file waisi ki waisi rahegi.</div></div></div>
+    </div>
+
+    <div class="cat-title" data-cat="optimize">Optimize PDF</div>
+    <div class="grid" data-cat="optimize">
+      <div class="tile locked" data-tool="compress" onclick="openTool('compress')"><div class="ic">📉</div><div class="ttext"><div class="tname">Compress PDF</div><div class="tdesc">Quality kharab kiye bina file ka size chhota karo.</div><div class="badge">backend</div></div></div>
+    </div>
+
+    <div class="cat-title" data-cat="to">Convert to PDF</div>
+    <div class="grid" data-cat="to">
+      <div class="tile" data-tool="img2pdf" onclick="openTool('img2pdf')"><div class="ic">🖼️</div><div class="ttext"><div class="tname">JPG/PNG to PDF</div><div class="tdesc">Ek ya kai photos ko jodkar ek PDF file bana do.</div></div></div>
+      <div class="tile locked" data-tool="word2pdf" onclick="openTool('word2pdf')"><div class="ic">📄</div><div class="ttext"><div class="tname">Word to PDF</div><div class="tdesc">.docx file ko PDF mein badlo, formatting waisi hi rahegi.</div><div class="badge">backend</div></div></div>
+      <div class="tile locked" data-tool="excel2pdf" onclick="openTool('excel2pdf')"><div class="ic">📊</div><div class="ttext"><div class="tname">Excel to PDF</div><div class="tdesc">.xlsx spreadsheet ko print-ready PDF banao.</div><div class="badge">backend</div></div></div>
+    </div>
+
+    <div class="cat-title" data-cat="from">Convert from PDF</div>
+    <div class="grid" data-cat="from">
+      <div class="tile" data-tool="pdf2img" onclick="openTool('pdf2img')"><div class="ic">🖨️</div><div class="ttext"><div class="tname">PDF to JPG</div><div class="tdesc">PDF ke har page ko ek JPG image mein badlo.</div></div></div>
+      <div class="tile locked" data-tool="pdf2word" onclick="openTool('pdf2word')"><div class="ic">📝</div><div class="ttext"><div class="tname">PDF to Word</div><div class="tdesc">PDF ko editable Word (.docx) document bana do.</div><div class="badge">backend</div></div></div>
+      <div class="tile locked" data-tool="pdf2excel" onclick="openTool('pdf2excel')"><div class="ic">📈</div><div class="ttext"><div class="tname">PDF to Excel</div><div class="tdesc">PDF ke andar ke tables Excel sheet mein nikaal lo.</div><div class="badge">backend</div></div></div>
+    </div>
+
+    <div class="cat-title" data-cat="edit">Edit PDF</div>
+    <div class="grid" data-cat="edit">
+      <div class="tile locked" data-tool="editpdf" onclick="openTool('editpdf')"><div class="ic">✏️</div><div class="ttext"><div class="tname">Edit PDF</div><div class="tdesc">PDF ke andar text edit karo, correction karo, seedha browser mein.</div><div class="badge">backend</div></div></div>
+    </div>
+  </div>
+
+  <div class="toolpage" id="tool-merge">
+    <div class="back" onclick="goHome()">← Wapas</div>
+    <div class="toolhead"><h2>Merge PDF</h2><p>Kai PDF files ko ek PDF mein jodo — jis order mein upload karoge, usi order mein jud jayenge.</p></div>
+    <div class="dropzone">
+      <label class="bigbtn" for="mergeInput">PDF Files Choose Karo</label>
+      <input type="file" id="mergeInput" accept=".pdf" multiple style="position:absolute;width:1px;height:1px;opacity:0;">
+      <p class="hint">2 ya usse zyada PDF select karo</p>
+    </div>
+    <div class="filequeue" id="mergeQueue"></div>
+    <div class="actionrow">
+      <button class="bigbtn" id="mergeBtn" style="display:none;">Merge Karo</button>
+      <div class="status" id="mergeStatus"></div>
+    </div>
+    <div class="resultlist" id="mergeResult"></div>
+  </div>
+
+  <div class="toolpage" id="tool-split">
+    <div class="back" onclick="goHome()">← Wapas</div>
+    <div class="toolhead"><h2>Split PDF</h2><p>PDF ke har page ko alag-alag PDF file mein todo.</p></div>
+    <div class="dropzone">
+      <label class="bigbtn" for="splitInput">PDF File Choose Karo</label>
+      <input type="file" id="splitInput" accept=".pdf" style="position:absolute;width:1px;height:1px;opacity:0;">
+    </div>
+    <div class="status" id="splitStatus"></div>
+    <div class="resultlist" id="splitResult"></div>
+  </div>
+
+  <div class="toolpage" id="tool-remove">
+    <div class="back" onclick="goHome()">← Wapas</div>
+    <div class="toolhead"><h2>Remove Pages</h2><p>PDF se specific pages hatao, baaki file save karo.</p></div>
+    <div class="dropzone">
+      <label class="bigbtn" for="removeInput">PDF File Choose Karo</label>
+      <input type="file" id="removeInput" accept=".pdf" style="position:absolute;width:1px;height:1px;opacity:0;">
+    </div>
+    <div class="actionrow" id="removeControls" style="display:none;">
+      <input type="text" id="removePages" placeholder="Kaunse page hatane hain? e.g. 2,4,5">
+      <button class="bigbtn" id="removeBtn">Pages Hatao</button>
+    </div>
+    <div class="status" id="removeStatus"></div>
+    <div class="resultlist" id="removeResult"></div>
+  </div>
+
+  <div class="toolpage" id="tool-img2pdf">
+    <div class="back" onclick="goHome()">← Wapas</div>
+    <div class="toolhead"><h2>JPG/PNG to PDF</h2><p>Ek ya kai photos ko ek PDF file mein badlo.</p></div>
+    <div class="dropzone">
+      <label class="bigbtn" for="img2pdfInput">Images Choose Karo</label>
+      <input type="file" id="img2pdfInput" accept="image/*" multiple style="position:absolute;width:1px;height:1px;opacity:0;">
+    </div>
+    <div class="filequeue" id="img2pdfQueue"></div>
+    <div class="actionrow">
+      <button class="bigbtn" id="img2pdfBtn" style="display:none;">PDF Banao</button>
+      <div class="status" id="img2pdfStatus"></div>
+    </div>
+    <div class="resultlist" id="img2pdfResult"></div>
+  </div>
+
+  <div class="toolpage" id="tool-pdf2img">
+    <div class="back" onclick="goHome()">← Wapas</div>
+    <div class="toolhead"><h2>PDF to JPG</h2><p>Har PDF page ek JPG image ban jayega.</p></div>
+    <div class="dropzone">
+      <label class="bigbtn" for="pdf2imgInput">PDF File Choose Karo</label>
+      <input type="file" id="pdf2imgInput" accept=".pdf" style="position:absolute;width:1px;height:1px;opacity:0;">
+    </div>
+    <div class="status" id="pdf2imgStatus"></div>
+    <div class="resultlist" id="pdf2imgResult"></div>
+  </div>
+
+  <div class="toolpage" id="tool-compress">
+    <div class="back" onclick="goHome()">← Wapas</div>
+    <div class="toolhead"><h2>Compress PDF</h2><p>File size chhota karna real compression engine maangta hai.</p></div>
+    <div class="unavail"><p>Achhi quality compression ke liye images ko re-encode karna padta hai — ye kaam server par hota hai. Backend deploy hone ke baad ye tool live ho jayega.</p></div>
+  </div>
+  <div class="toolpage" id="tool-word2pdf">
+    <div class="back" onclick="goHome()">← Wapas</div>
+    <div class="toolhead"><h2>Word to PDF</h2><p>.docx file ko PDF mein badlo.</p></div>
+    <div class="dropzone">
+      <label class="bigbtn" for="word2pdfInput">Word File Choose Karo</label>
+      <input type="file" id="word2pdfInput" accept=".docx" style="position:absolute;width:1px;height:1px;opacity:0;">
+    </div>
+    <div class="status" id="word2pdfStatus"></div>
+    <div class="resultlist" id="word2pdfResult"></div>
+  </div>
+  <div class="toolpage" id="tool-pdf2word">
+    <div class="back" onclick="goHome()">← Wapas</div>
+    <div class="toolhead"><h2>PDF to Word</h2><p>PDF ko editable Word (.docx) file banao.</p></div>
+    <div class="dropzone">
+      <label class="bigbtn" for="pdf2wordInput">PDF File Choose Karo</label>
+      <input type="file" id="pdf2wordInput" accept=".pdf" style="position:absolute;width:1px;height:1px;opacity:0;">
+    </div>
+    <div class="status" id="pdf2wordStatus"></div>
+    <div class="resultlist" id="pdf2wordResult"></div>
+  </div>
+  <div class="toolpage" id="tool-excel2pdf">
+    <div class="back" onclick="goHome()">← Wapas</div>
+    <div class="toolhead"><h2>Excel to PDF</h2><p>.xlsx file ko PDF mein badlo.</p></div>
+    <div class="unavail"><p>Ye backend deploy hone ke baad live hoga.</p></div>
+  </div>
+  <div class="toolpage" id="tool-pdf2excel">
+    <div class="back" onclick="goHome()">← Wapas</div>
+    <div class="toolhead"><h2>PDF to Excel</h2><p>PDF ke tables ko Excel mein nikalo.</p></div>
+    <div class="unavail"><p>Ye backend deploy hone ke baad live hoga.</p></div>
+  </div>
+  <div class="toolpage" id="tool-editpdf">
+    <div class="back" onclick="goHome()">← Wapas</div>
+    <div class="toolhead"><h2>Edit PDF</h2><p>PDF ke andar text correction karo.</p></div>
+    <div class="unavail"><p>Ye backend deploy hone ke baad live hoga.</p></div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footwrap">
+    <div class="foottitle">Website Traffic Statistics</div>
+    <div class="counters">
+      <div class="counterbox"><div class="num" id="statVisitors">0</div><div class="lbl">Total Visitors</div></div>
+      <div class="counterbox"><div class="num" id="statConversions">0</div><div class="lbl">Files Converted</div></div>
+      <div class="counterbox"><div class="num" id="statStates">0</div><div class="lbl">States Reached</div></div>
+      <div class="counterbox"><div class="num" id="statToday">0</div><div class="lbl">Visitors Today</div></div>
+    </div>
+    <div class="footnote">Ye demo counter hai. Website live hone aur Google Analytics connect hone ke baad yahan real visitor/conversion data dikhega.</div>
+  </div>
+</footer>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const { PDFDocument } = PDFLib;
+
+function goHome(){
+  document.getElementById('home').style.display='block';
+  document.querySelectorAll('.toolpage').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active'));
+}
+function openTool(id){
+  document.getElementById('home').style.display='none';
+  document.querySelectorAll('.toolpage').forEach(p=>p.classList.remove('active'));
+  const el=document.getElementById('tool-'+id);
+  if(el) el.classList.add('active');
+  window.scrollTo(0,0);
+}
+
+// ---------- CATEGORY FILTER ----------
+function filterCat(cat){
+  document.querySelectorAll('.fpill').forEach(p=>p.classList.toggle('sel', p.dataset.cat===cat));
+  document.querySelectorAll('.cat-title, .grid').forEach(el=>{
+    el.style.display = (cat==='all' || el.dataset.cat===cat) ? '' : 'none';
+  });
+}
+
+// ---------- LANGUAGE SWITCH ----------
+const translations = {
+  hi: {
+    heroTitle: "पीडीएफ का हर काम, एक ही जगह",
+    heroSub: "सरल और आसान — बस फ़ाइल अपलोड करो और काम हो जाए।"
+  },
+  en: {
+    heroTitle: "Every PDF task, in one place",
+    heroSub: "Simple and easy — just upload your file and get it done."
+  },
+  hg: {
+    heroTitle: "Ek jagah, PDF ka har kaam",
+    heroSub: "Simple aur easy — bas file upload karo aur kaam ho jaye."
+  }
+};
+function setLang(lang){
+  const t = translations[lang] || translations.hg;
+  document.getElementById('heroTitle').textContent = t.heroTitle;
+  document.getElementById('heroSub').textContent = t.heroSub;
+}
+
+// ---------- FOOTER COUNTER (demo animation) ----------
+function animateCounter(id, target){
+  const el = document.getElementById(id);
+  let cur = 0;
+  const step = Math.max(1, Math.floor(target/60));
+  const iv = setInterval(()=>{
+    cur += step;
+    if(cur>=target){ cur=target; clearInterval(iv); }
+    el.textContent = cur.toLocaleString('en-IN');
+  }, 25);
+}
+animateCounter('statVisitors', 0);
+animateCounter('statConversions', 0);
+animateCounter('statStates', 0);
+animateCounter('statToday', 0);
+
+let mergeFiles=[];
+document.getElementById('mergeInput').addEventListener('change', e=>{
+  mergeFiles = mergeFiles.concat(Array.from(e.target.files));
+  renderQueue('mergeQueue', mergeFiles, 'merge');
+  document.getElementById('mergeBtn').style.display = mergeFiles.length>=2 ? 'inline-block' : 'none';
+});
+function renderQueue(elId, files, kind){
+  const el=document.getElementById(elId);
+  el.innerHTML = files.map((f,i)=>`<div class="qitem"><span>${i+1}. ${f.name}</span><span class="rm" onclick="removeFromQueue('${kind}',${i})">✕</span></div>`).join('');
+}
+function removeFromQueue(kind, idx){
+  if(kind==='merge'){ mergeFiles.splice(idx,1); renderQueue('mergeQueue', mergeFiles,'merge'); document.getElementById('mergeBtn').style.display = mergeFiles.length>=2?'inline-block':'none'; }
+  if(kind==='img2pdf'){ img2pdfFiles.splice(idx,1); renderQueue('img2pdfQueue', img2pdfFiles,'img2pdf'); document.getElementById('img2pdfBtn').style.display = img2pdfFiles.length>=1?'inline-block':'none'; }
+}
+document.getElementById('mergeBtn').addEventListener('click', async ()=>{
+  const statusEl=document.getElementById('mergeStatus');
+  statusEl.textContent='Merge ho raha hai...';
+  try{
+    const outDoc = await PDFDocument.create();
+    for(const f of mergeFiles){
+      const bytes = await f.arrayBuffer();
+      const src = await PDFDocument.load(bytes);
+      const pages = await outDoc.copyPages(src, src.getPageIndices());
+      pages.forEach(p=>outDoc.addPage(p));
+    }
+    const finalBytes = await outDoc.save();
+    const blob = new Blob([finalBytes], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    document.getElementById('mergeResult').innerHTML = `<div class="result-item"><span>merged.pdf</span><a href="${url}" download="merged.pdf">Download ⬇</a></div>`;
+    statusEl.textContent='Done!';
+  }catch(err){ statusEl.textContent='Error: files merge nahi ho payi.'; }
+});
+
+document.getElementById('splitInput').addEventListener('change', async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const statusEl=document.getElementById('splitStatus');
+  const resultEl=document.getElementById('splitResult');
+  resultEl.innerHTML=''; statusEl.textContent='Split ho raha hai...';
+  try{
+    const bytes = await f.arrayBuffer();
+    const src = await PDFDocument.load(bytes);
+    const count = src.getPageCount();
+    for(let i=0;i<count;i++){
+      const outDoc = await PDFDocument.create();
+      const [page] = await outDoc.copyPages(src, [i]);
+      outDoc.addPage(page);
+      const outBytes = await outDoc.save();
+      const blob = new Blob([outBytes], {type:'application/pdf'});
+      const url = URL.createObjectURL(blob);
+      const row = document.createElement('div');
+      row.className='result-item';
+      row.innerHTML = `<span>page-${i+1}.pdf</span><a href="${url}" download="page-${i+1}.pdf">Download ⬇</a>`;
+      resultEl.appendChild(row);
+    }
+    statusEl.textContent=`Done — ${count} files ready.`;
+  }catch(err){ statusEl.textContent='Error: PDF split nahi ho payi.'; }
+});
+
+let removeFileObj=null;
+document.getElementById('removeInput').addEventListener('change', e=>{
+  removeFileObj=e.target.files[0];
+  if(removeFileObj) document.getElementById('removeControls').style.display='block';
+});
+document.getElementById('removeBtn').addEventListener('click', async ()=>{
+  if(!removeFileObj) return;
+  const statusEl=document.getElementById('removeStatus');
+  const pagesStr=document.getElementById('removePages').value;
+  const toRemove = pagesStr.split(',').map(s=>parseInt(s.trim())-1).filter(n=>!isNaN(n));
+  statusEl.textContent='Process ho raha hai...';
+  try{
+    const bytes = await removeFileObj.arrayBuffer();
+    const src = await PDFDocument.load(bytes);
+    toRemove.sort((a,b)=>b-a).forEach(idx=>{ if(idx>=0 && idx<src.getPageCount()) src.removePage(idx); });
+    const outBytes = await src.save();
+    const blob = new Blob([outBytes], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    document.getElementById('removeResult').innerHTML = `<div class="result-item"><span>edited.pdf</span><a href="${url}" download="edited.pdf">Download ⬇</a></div>`;
+    statusEl.textContent='Done!';
+  }catch(err){ statusEl.textContent='Error: pages remove nahi hue.'; }
+});
+
+let img2pdfFiles=[];
+document.getElementById('img2pdfInput').addEventListener('change', e=>{
+  img2pdfFiles = img2pdfFiles.concat(Array.from(e.target.files));
+  renderQueue('img2pdfQueue', img2pdfFiles, 'img2pdf');
+  document.getElementById('img2pdfBtn').style.display = img2pdfFiles.length>=1 ? 'inline-block' : 'none';
+});
+document.getElementById('img2pdfBtn').addEventListener('click', async ()=>{
+  const statusEl=document.getElementById('img2pdfStatus');
+  statusEl.textContent='PDF ban raha hai...';
+  try{
+    const outDoc = await PDFDocument.create();
+    for(const f of img2pdfFiles){
+      const bytes = await f.arrayBuffer();
+      let img;
+      if(f.type==='image/png') img = await outDoc.embedPng(bytes);
+      else img = await outDoc.embedJpg(bytes);
+      const page = outDoc.addPage([img.width, img.height]);
+      page.drawImage(img, {x:0, y:0, width:img.width, height:img.height});
+    }
+    const finalBytes = await outDoc.save();
+    const blob = new Blob([finalBytes], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    document.getElementById('img2pdfResult').innerHTML = `<div class="result-item"><span>images.pdf</span><a href="${url}" download="images.pdf">Download ⬇</a></div>`;
+    statusEl.textContent='Done!';
+  }catch(err){ statusEl.textContent='Error: PDF nahi ban paya (sirf JPG/PNG chalega).'; }
+});
+
+document.getElementById('pdf2imgInput').addEventListener('change', async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const statusEl=document.getElementById('pdf2imgStatus');
+  const resultEl=document.getElementById('pdf2imgResult');
+  resultEl.innerHTML=''; statusEl.textContent='Padh raha hoon...';
+  try{
+    const buf=await f.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    for(let i=1;i<=pdf.numPages;i++){
+      statusEl.textContent=`Page ${i}/${pdf.numPages} process ho raha hai...`;
+      const page=await pdf.getPage(i);
+      const viewport=page.getViewport({scale:2.2});
+      const canvas=document.createElement('canvas');
+      canvas.width=viewport.width; canvas.height=viewport.height;
+      const ctx=canvas.getContext('2d');
+      await page.render({canvasContext:ctx, viewport}).promise;
+      const dataUrl=canvas.toDataURL('image/jpeg',0.97);
+      const row=document.createElement('div');
+      row.className='result-item';
+      row.innerHTML=`<span>page-${i}.jpg</span><a href="${dataUrl}" download="page-${i}.jpg">Download ⬇</a>`;
+      resultEl.appendChild(row);
+    }
+    statusEl.textContent=`Done — ${pdf.numPages} page(s) ready.`;
+  }catch(err){ statusEl.textContent='Error: PDF read nahi ho payi.'; }
+});
+
+function wireBackendTool(inputId, statusId, resultId, endpoint, outExt){
+  document.getElementById(inputId).addEventListener('change', async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const statusEl=document.getElementById(statusId);
+    statusEl.textContent='Upload ho raha hai...';
+    try{
+      const formData=new FormData(); formData.append('file', f);
+      const res=await fetch(endpoint, {method:'POST', body:formData});
+      if(!res.ok) throw new Error();
+      const blob=await res.blob();
+      const url=URL.createObjectURL(blob);
+      const outName=f.name.replace(/\.[^.]+$/, '.'+outExt);
+      document.getElementById(resultId).innerHTML = `<div class="result-item"><span>${outName}</span><a href="${url}" download="${outName}">Download ⬇</a></div>`;
+      statusEl.textContent='Done!';
+    }catch(err){
+      statusEl.textContent='Abhi backend live nahi hai — server deploy hone ka wait karo.';
+    }
+  });
+}
+wireBackendTool('word2pdfInput','word2pdfStatus','word2pdfResult','/api/convert/word-to-pdf','pdf');
+wireBackendTool('pdf2wordInput','pdf2wordStatus','pdf2wordResult','/api/convert/pdf-to-word','docx');
+</script>
+
+</body>
+</html>

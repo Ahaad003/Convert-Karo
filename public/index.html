@@ -107,6 +107,7 @@
   .tile[data-tool="excel2pdf"] .ic, .tile[data-tool="pdf2excel"] .ic{background:linear-gradient(135deg,#22c55e,#15803d);}
   .tile[data-tool="pdf2img"] .ic{background:linear-gradient(135deg,#eab308,#ca8a04);}
   .tile[data-tool="editpdf"] .ic{background:linear-gradient(135deg,#a855f7,#7e22ce);}
+  .tile[data-tool="imgenhance"] .ic{background:linear-gradient(135deg,#ec4899,#db2777);}
   .tile .ttext{flex:1;}
   .tile .tname{font-size:0.88rem;font-weight:700;margin-bottom:4px;}
   .tile .tdesc{font-size:0.74rem;color:var(--gray);line-height:1.4;}
@@ -235,6 +236,7 @@
       <div class="fpill" data-cat="to" onclick="filterCat('to')">Convert to PDF</div>
       <div class="fpill" data-cat="from" onclick="filterCat('from')">Convert from PDF</div>
       <div class="fpill" data-cat="edit" onclick="filterCat('edit')">Edit PDF</div>
+      <div class="fpill" data-cat="image" onclick="filterCat('image')">Image Tools</div>
     </div>
 
     <div class="cat-title" data-cat="organize">Organize PDF</div>
@@ -246,26 +248,31 @@
 
     <div class="cat-title" data-cat="optimize">Optimize PDF</div>
     <div class="grid" data-cat="optimize">
-      <div class="tile locked" data-tool="compress" onclick="openTool('compress')"><div class="ic">📉</div><div class="ttext"><div class="tname">Compress PDF</div><div class="tdesc">Quality kharab kiye bina file ka size chhota karo.</div><div class="badge">backend</div></div></div>
+      <div class="tile" data-tool="compress" onclick="openTool('compress')"><div class="ic">📉</div><div class="ttext"><div class="tname">Compress PDF</div><div class="tdesc">Quality kharab kiye bina file ka size chhota karo.</div></div></div>
     </div>
 
     <div class="cat-title" data-cat="to">Convert to PDF</div>
     <div class="grid" data-cat="to">
       <div class="tile" data-tool="img2pdf" onclick="openTool('img2pdf')"><div class="ic">🖼️</div><div class="ttext"><div class="tname">JPG/PNG to PDF</div><div class="tdesc">Ek ya kai photos ko jodkar ek PDF file bana do.</div></div></div>
       <div class="tile locked" data-tool="word2pdf" onclick="openTool('word2pdf')"><div class="ic">📄</div><div class="ttext"><div class="tname">Word to PDF</div><div class="tdesc">.docx file ko PDF mein badlo, formatting waisi hi rahegi.</div><div class="badge">backend</div></div></div>
-      <div class="tile locked" data-tool="excel2pdf" onclick="openTool('excel2pdf')"><div class="ic">📊</div><div class="ttext"><div class="tname">Excel to PDF</div><div class="tdesc">.xlsx spreadsheet ko print-ready PDF banao.</div><div class="badge">backend</div></div></div>
+      <div class="tile" data-tool="excel2pdf" onclick="openTool('excel2pdf')"><div class="ic">📊</div><div class="ttext"><div class="tname">Excel to PDF</div><div class="tdesc">.xlsx spreadsheet ko print-ready PDF banao.</div></div></div>
     </div>
 
     <div class="cat-title" data-cat="from">Convert from PDF</div>
     <div class="grid" data-cat="from">
       <div class="tile" data-tool="pdf2img" onclick="openTool('pdf2img')"><div class="ic">🖨️</div><div class="ttext"><div class="tname">PDF to JPG</div><div class="tdesc">PDF ke har page ko ek JPG image mein badlo.</div></div></div>
       <div class="tile locked" data-tool="pdf2word" onclick="openTool('pdf2word')"><div class="ic">📝</div><div class="ttext"><div class="tname">PDF to Word</div><div class="tdesc">PDF ko editable Word (.docx) document bana do.</div><div class="badge">backend</div></div></div>
-      <div class="tile locked" data-tool="pdf2excel" onclick="openTool('pdf2excel')"><div class="ic">📈</div><div class="ttext"><div class="tname">PDF to Excel</div><div class="tdesc">PDF ke andar ke tables Excel sheet mein nikaal lo.</div><div class="badge">backend</div></div></div>
+      <div class="tile" data-tool="pdf2excel" onclick="openTool('pdf2excel')"><div class="ic">📈</div><div class="ttext"><div class="tname">PDF to Excel</div><div class="tdesc">PDF ke andar ke tables Excel sheet mein nikaal lo.</div></div></div>
     </div>
 
     <div class="cat-title" data-cat="edit">Edit PDF</div>
     <div class="grid" data-cat="edit">
-      <div class="tile locked" data-tool="editpdf" onclick="openTool('editpdf')"><div class="ic">✏️</div><div class="ttext"><div class="tname">Edit PDF</div><div class="tdesc">PDF ke andar text edit karo, correction karo, seedha browser mein.</div><div class="badge">backend</div></div></div>
+      <div class="tile" data-tool="editpdf" onclick="openTool('editpdf')"><div class="ic">✏️</div><div class="ttext"><div class="tname">Edit PDF</div><div class="tdesc">PDF ke andar text edit karo, correction karo, seedha browser mein.</div></div></div>
+    </div>
+
+    <div class="cat-title" data-cat="image">Image Tools</div>
+    <div class="grid" data-cat="image">
+      <div class="tile" data-tool="imgenhance" onclick="openTool('imgenhance')"><div class="ic">✨</div><div class="ttext"><div class="tname">Enhance Image</div><div class="tdesc">Halki dhundhli photo ko sharp/crisp karo.</div></div></div>
     </div>
   </div>
 
@@ -317,7 +324,7 @@
     <div class="dropzone">
       <label class="bigbtn" for="img2pdfInput">Images Choose Karo</label>
       <input type="file" id="img2pdfInput" accept="image/*" multiple style="position:absolute;width:1px;height:1px;opacity:0;">
-      <p class="hint" style="margin-top:14px;"><label><input type="checkbox" id="img2pdfEnhance"> Sharpen/Enhance (dhundhli photo ko crisp karo)</label></p>
+      <p class="hint" style="margin-top:14px;">✨ High quality — automatic enhance</p>
     </div>
     <div class="filequeue" id="img2pdfQueue"></div>
     <div class="actionrow">
@@ -333,7 +340,7 @@
     <div class="dropzone">
       <label class="bigbtn" for="pdf2imgInput">PDF File Choose Karo</label>
       <input type="file" id="pdf2imgInput" accept=".pdf" style="position:absolute;width:1px;height:1px;opacity:0;">
-      <p class="hint" style="margin-top:14px;"><label><input type="checkbox" id="pdf2imgEnhance" checked> Sharpen/Enhance (dhundhli image ko crisp karo)</label></p>
+      <p class="hint" style="margin-top:14px;">✨ High quality — automatic enhance</p>
     </div>
     <div class="status" id="pdf2imgStatus"></div>
     <div class="resultlist" id="pdf2imgResult"></div>
@@ -341,8 +348,13 @@
 
   <div class="toolpage" id="tool-compress">
     <div class="back" onclick="goHome()">← Wapas</div>
-    <div class="toolhead"><h2>Compress PDF</h2><p>File size chhota karna real compression engine maangta hai.</p></div>
-    <div class="unavail"><p>Achhi quality compression ke liye images ko re-encode karna padta hai — ye kaam server par hota hai. Backend deploy hone ke baad ye tool live ho jayega.</p></div>
+    <div class="toolhead"><h2>Compress PDF</h2><p>File size chhota karo, quality achhi rakhte hue.</p></div>
+    <div class="dropzone">
+      <label class="bigbtn" for="compressInput">PDF File Choose Karo</label>
+      <input type="file" id="compressInput" accept=".pdf" style="position:absolute;width:1px;height:1px;opacity:0;">
+    </div>
+    <div class="status" id="compressStatus"></div>
+    <div class="resultlist" id="compressResult"></div>
   </div>
   <div class="toolpage" id="tool-word2pdf">
     <div class="back" onclick="goHome()">← Wapas</div>
@@ -367,305 +379,6 @@
   <div class="toolpage" id="tool-excel2pdf">
     <div class="back" onclick="goHome()">← Wapas</div>
     <div class="toolhead"><h2>Excel to PDF</h2><p>.xlsx file ko PDF mein badlo.</p></div>
-    <div class="unavail"><p>Ye backend deploy hone ke baad live hoga.</p></div>
-  </div>
-  <div class="toolpage" id="tool-pdf2excel">
-    <div class="back" onclick="goHome()">← Wapas</div>
-    <div class="toolhead"><h2>PDF to Excel</h2><p>PDF ke tables ko Excel mein nikalo.</p></div>
-    <div class="unavail"><p>Ye backend deploy hone ke baad live hoga.</p></div>
-  </div>
-  <div class="toolpage" id="tool-editpdf">
-    <div class="back" onclick="goHome()">← Wapas</div>
-    <div class="toolhead"><h2>Edit PDF</h2><p>PDF ke andar text correction karo.</p></div>
-    <div class="unavail"><p>Ye backend deploy hone ke baad live hoga.</p></div>
-  </div>
-
-</main>
-
-<footer>
-  <div class="footwrap">
-    <div class="foottitle">Website Traffic Statistics</div>
-    <div class="counters">
-      <div class="counterbox"><div class="num" id="statVisitors">0</div><div class="lbl">Total Visitors</div></div>
-      <div class="counterbox"><div class="num" id="statConversions">0</div><div class="lbl">Files Converted</div></div>
-      <div class="counterbox"><div class="num" id="statStates">0</div><div class="lbl">States Reached</div></div>
-      <div class="counterbox"><div class="num" id="statToday">0</div><div class="lbl">Visitors Today</div></div>
-    </div>
-    <div class="footnote">Ye demo counter hai. Website live hone aur Google Analytics connect hone ke baad yahan real visitor/conversion data dikhega.</div>
-  </div>
-</footer>
-
-<script>
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const { PDFDocument } = PDFLib;
-
-function goHome(){
-  document.getElementById('home').style.display='block';
-  document.querySelectorAll('.toolpage').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active'));
-}
-function openTool(id){
-  document.getElementById('home').style.display='none';
-  document.querySelectorAll('.toolpage').forEach(p=>p.classList.remove('active'));
-  const el=document.getElementById('tool-'+id);
-  if(el) el.classList.add('active');
-  window.scrollTo(0,0);
-}
-
-// ---------- CATEGORY FILTER ----------
-function filterCat(cat){
-  document.querySelectorAll('.fpill').forEach(p=>p.classList.toggle('sel', p.dataset.cat===cat));
-  document.querySelectorAll('.cat-title, .grid').forEach(el=>{
-    el.style.display = (cat==='all' || el.dataset.cat===cat) ? '' : 'none';
-  });
-}
-
-// ---------- LANGUAGE SWITCH ----------
-const translations = {
-  hi: {
-    heroTitle: "पीडीएफ का हर काम, एक ही जगह",
-    heroSub: "सरल और आसान — बस फ़ाइल अपलोड करो और काम हो जाए।"
-  },
-  en: {
-    heroTitle: "Every PDF task, in one place",
-    heroSub: "Simple and easy — just upload your file and get it done."
-  },
-  hg: {
-    heroTitle: "Ek jagah, PDF ka har kaam",
-    heroSub: "Simple aur easy — bas file upload karo aur kaam ho jaye."
-  }
-};
-function setLang(lang){
-  const t = translations[lang] || translations.hg;
-  document.getElementById('heroTitle').textContent = t.heroTitle;
-  document.getElementById('heroSub').textContent = t.heroSub;
-}
-
-// ---------- FOOTER COUNTER (demo animation) ----------
-function animateCounter(id, target){
-  const el = document.getElementById(id);
-  let cur = 0;
-  const step = Math.max(1, Math.floor(target/60));
-  const iv = setInterval(()=>{
-    cur += step;
-    if(cur>=target){ cur=target; clearInterval(iv); }
-    el.textContent = cur.toLocaleString('en-IN');
-  }, 25);
-}
-animateCounter('statVisitors', 0);
-animateCounter('statConversions', 0);
-animateCounter('statStates', 0);
-animateCounter('statToday', 0);
-
-let mergeFiles=[];
-document.getElementById('mergeInput').addEventListener('change', e=>{
-  mergeFiles = mergeFiles.concat(Array.from(e.target.files));
-  renderQueue('mergeQueue', mergeFiles, 'merge');
-  document.getElementById('mergeBtn').style.display = mergeFiles.length>=2 ? 'inline-block' : 'none';
-});
-function renderQueue(elId, files, kind){
-  const el=document.getElementById(elId);
-  el.innerHTML = files.map((f,i)=>`<div class="qitem"><span>${i+1}. ${f.name}</span><span class="rm" onclick="removeFromQueue('${kind}',${i})">✕</span></div>`).join('');
-}
-function removeFromQueue(kind, idx){
-  if(kind==='merge'){ mergeFiles.splice(idx,1); renderQueue('mergeQueue', mergeFiles,'merge'); document.getElementById('mergeBtn').style.display = mergeFiles.length>=2?'inline-block':'none'; }
-  if(kind==='img2pdf'){ img2pdfFiles.splice(idx,1); renderQueue('img2pdfQueue', img2pdfFiles,'img2pdf'); document.getElementById('img2pdfBtn').style.display = img2pdfFiles.length>=1?'inline-block':'none'; }
-}
-document.getElementById('mergeBtn').addEventListener('click', async ()=>{
-  const statusEl=document.getElementById('mergeStatus');
-  statusEl.textContent='Merge ho raha hai...';
-  try{
-    const outDoc = await PDFDocument.create();
-    for(const f of mergeFiles){
-      const bytes = await f.arrayBuffer();
-      const src = await PDFDocument.load(bytes);
-      const pages = await outDoc.copyPages(src, src.getPageIndices());
-      pages.forEach(p=>outDoc.addPage(p));
-    }
-    const finalBytes = await outDoc.save();
-    const blob = new Blob([finalBytes], {type:'application/pdf'});
-    const url = URL.createObjectURL(blob);
-    document.getElementById('mergeResult').innerHTML = `<div class="result-item"><span>merged.pdf</span><a href="${url}" download="merged.pdf">Download ⬇</a></div>`;
-    statusEl.textContent='Done!';
-  }catch(err){ statusEl.textContent='Error: files merge nahi ho payi.'; }
-});
-
-document.getElementById('splitInput').addEventListener('change', async e=>{
-  const f=e.target.files[0]; if(!f) return;
-  const statusEl=document.getElementById('splitStatus');
-  const resultEl=document.getElementById('splitResult');
-  resultEl.innerHTML=''; statusEl.textContent='Split ho raha hai...';
-  try{
-    const bytes = await f.arrayBuffer();
-    const src = await PDFDocument.load(bytes);
-    const count = src.getPageCount();
-    for(let i=0;i<count;i++){
-      const outDoc = await PDFDocument.create();
-      const [page] = await outDoc.copyPages(src, [i]);
-      outDoc.addPage(page);
-      const outBytes = await outDoc.save();
-      const blob = new Blob([outBytes], {type:'application/pdf'});
-      const url = URL.createObjectURL(blob);
-      const row = document.createElement('div');
-      row.className='result-item';
-      row.innerHTML = `<span>page-${i+1}.pdf</span><a href="${url}" download="page-${i+1}.pdf">Download ⬇</a>`;
-      resultEl.appendChild(row);
-    }
-    statusEl.textContent=`Done — ${count} files ready.`;
-  }catch(err){ statusEl.textContent='Error: PDF split nahi ho payi.'; }
-});
-
-let removeFileObj=null;
-document.getElementById('removeInput').addEventListener('change', e=>{
-  removeFileObj=e.target.files[0];
-  if(removeFileObj) document.getElementById('removeControls').style.display='block';
-});
-document.getElementById('removeBtn').addEventListener('click', async ()=>{
-  if(!removeFileObj) return;
-  const statusEl=document.getElementById('removeStatus');
-  const pagesStr=document.getElementById('removePages').value;
-  const toRemove = pagesStr.split(',').map(s=>parseInt(s.trim())-1).filter(n=>!isNaN(n));
-  statusEl.textContent='Process ho raha hai...';
-  try{
-    const bytes = await removeFileObj.arrayBuffer();
-    const src = await PDFDocument.load(bytes);
-    toRemove.sort((a,b)=>b-a).forEach(idx=>{ if(idx>=0 && idx<src.getPageCount()) src.removePage(idx); });
-    const outBytes = await src.save();
-    const blob = new Blob([outBytes], {type:'application/pdf'});
-    const url = URL.createObjectURL(blob);
-    document.getElementById('removeResult').innerHTML = `<div class="result-item"><span>edited.pdf</span><a href="${url}" download="edited.pdf">Download ⬇</a></div>`;
-    statusEl.textContent='Done!';
-  }catch(err){ statusEl.textContent='Error: pages remove nahi hue.'; }
-});
-
-let img2pdfFiles=[];
-document.getElementById('img2pdfInput').addEventListener('change', e=>{
-  img2pdfFiles = img2pdfFiles.concat(Array.from(e.target.files));
-  renderQueue('img2pdfQueue', img2pdfFiles, 'img2pdf');
-  document.getElementById('img2pdfBtn').style.display = img2pdfFiles.length>=1 ? 'inline-block' : 'none';
-});
-document.getElementById('img2pdfBtn').addEventListener('click', async ()=>{
-  const statusEl=document.getElementById('img2pdfStatus');
-  const enhance = document.getElementById('img2pdfEnhance').checked;
-  statusEl.textContent='PDF ban raha hai...';
-  try{
-    const outDoc = await PDFDocument.create();
-    for(const f of img2pdfFiles){
-      let embedBytes = await f.arrayBuffer();
-      let mimeType = f.type;
-      if(enhance){
-        statusEl.textContent='Enhance ho raha hai...';
-        const bmp = await createImageBitmap(new Blob([embedBytes], {type:f.type}));
-        const canvas=document.createElement('canvas');
-        canvas.width=bmp.width; canvas.height=bmp.height;
-        const ctx=canvas.getContext('2d');
-        ctx.drawImage(bmp,0,0);
-        sharpenCanvas(canvas);
-        const outMime = f.type==='image/png' ? 'image/png' : 'image/jpeg';
-        const outDataUrl = canvas.toDataURL(outMime, 0.99);
-        embedBytes = await (await fetch(outDataUrl)).arrayBuffer();
-        mimeType = outMime;
-      }
-      let img;
-      if(mimeType==='image/png') img = await outDoc.embedPng(embedBytes);
-      else img = await outDoc.embedJpg(embedBytes);
-      const page = outDoc.addPage([img.width, img.height]);
-      page.drawImage(img, {x:0, y:0, width:img.width, height:img.height});
-    }
-    const finalBytes = await outDoc.save();
-    const blob = new Blob([finalBytes], {type:'application/pdf'});
-    const url = URL.createObjectURL(blob);
-    document.getElementById('img2pdfResult').innerHTML = `<div class="result-item"><span>images.pdf</span><a href="${url}" download="images.pdf">Download ⬇</a></div>`;
-    statusEl.textContent='Done!';
-  }catch(err){ statusEl.textContent='Error: PDF nahi ban paya (sirf JPG/PNG chalega).'; }
-});
-
-document.getElementById('pdf2imgInput').addEventListener('change', async e=>{
-  const f=e.target.files[0]; if(!f) return;
-  const statusEl=document.getElementById('pdf2imgStatus');
-  const resultEl=document.getElementById('pdf2imgResult');
-  resultEl.innerHTML=''; statusEl.textContent='Padh raha hoon...';
-  try{
-    const buf=await f.arrayBuffer();
-    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
-    for(let i=1;i<=pdf.numPages;i++){
-      statusEl.textContent=`Page ${i}/${pdf.numPages} process ho raha hai...`;
-      const page=await pdf.getPage(i);
-      const viewport=page.getViewport({scale:2.8});
-      const canvas=document.createElement('canvas');
-      canvas.width=viewport.width; canvas.height=viewport.height;
-      const ctx=canvas.getContext('2d');
-      await page.render({canvasContext:ctx, viewport}).promise;
-      if(document.getElementById('pdf2imgEnhance').checked){
-        statusEl.textContent=`Page ${i}/${pdf.numPages} enhance ho raha hai...`;
-        sharpenCanvas(canvas);
-      }
-      const dataUrl=canvas.toDataURL('image/jpeg',0.99);
-      const row=document.createElement('div');
-      row.className='result-item';
-      row.innerHTML=`<span>page-${i}.jpg</span><a href="${dataUrl}" download="page-${i}.jpg">Download ⬇</a>`;
-      resultEl.appendChild(row);
-    }
-    statusEl.textContent=`Done — ${pdf.numPages} page(s) ready.`;
-  }catch(err){ statusEl.textContent='Error: PDF read nahi ho payi.'; }
-});
-
-// ---------- IMAGE ENHANCE (sharpen filter) ----------
-// Applies a light unsharp-mask style convolution to make edges/text crisper.
-// Note: this improves clarity on slightly soft images, it cannot fix heavy
-// blur or recreate detail that was never captured — that needs AI upscaling.
-function sharpenCanvas(canvas){
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width, h = canvas.height;
-  const src = ctx.getImageData(0,0,w,h);
-  const dst = ctx.createImageData(w,h);
-  const kernel = [0,-0.5,0, -0.5,3,-0.5, 0,-0.5,0]; // mild sharpen kernel
-  const sd = src.data, dd = dst.data;
-  for(let y=0; y<h; y++){
-    for(let x=0; x<w; x++){
-      const i = (y*w+x)*4;
-      if(x===0||y===0||x===w-1||y===h-1){
-        dd[i]=sd[i]; dd[i+1]=sd[i+1]; dd[i+2]=sd[i+2]; dd[i+3]=sd[i+3];
-        continue;
-      }
-      for(let c=0;c<3;c++){
-        let sum=0, k=0;
-        for(let ky=-1;ky<=1;ky++){
-          for(let kx=-1;kx<=1;kx++){
-            const idx = ((y+ky)*w+(x+kx))*4+c;
-            sum += sd[idx]*kernel[k]; k++;
-          }
-        }
-        dd[i+c] = Math.max(0, Math.min(255, sum));
-      }
-      dd[i+3]=sd[i+3];
-    }
-  }
-  ctx.putImageData(dst,0,0);
-}
-
-function wireBackendTool(inputId, statusId, resultId, endpoint, outExt){
-  document.getElementById(inputId).addEventListener('change', async e=>{
-    const f=e.target.files[0]; if(!f) return;
-    const statusEl=document.getElementById(statusId);
-    statusEl.textContent='Upload ho raha hai...';
-    try{
-      const formData=new FormData(); formData.append('file', f);
-      const res=await fetch(endpoint, {method:'POST', body:formData});
-      if(!res.ok) throw new Error();
-      const blob=await res.blob();
-      const url=URL.createObjectURL(blob);
-      const outName=f.name.replace(/\.[^.]+$/, '.'+outExt);
-      document.getElementById(resultId).innerHTML = `<div class="result-item"><span>${outName}</span><a href="${url}" download="${outName}">Download ⬇</a></div>`;
-      statusEl.textContent='Done!';
-    }catch(err){
-      statusEl.textContent='Abhi backend live nahi hai — server deploy hone ka wait karo.';
-    }
-  });
-}
-wireBackendTool('word2pdfInput','word2pdfStatus','word2pdfResult','/api/convert/word-to-pdf','pdf');
-wireBackendTool('pdf2wordInput','pdf2wordStatus','pdf2wordResult','/api/convert/pdf-to-word','docx');
-</script>
-
-</body>
-</html>
+    <div class="dropzone">
+      <label class="bigbtn" for="excel2pdfInput">Excel File Choose Karo</label>
+      <in

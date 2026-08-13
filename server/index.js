@@ -548,4 +548,1104 @@ setInterval(() => {
 
 app.listen(PORT, () => {
   console.log('ConvertKaro backend running on port ' + PORT);
+});// ConvertKaro Backend Server
+// Handles: PDF -> Word, Word -> PDF, and PDF editing (via pdf-lib)
+
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
+const cors = require('cors');
+const libre = require('libreoffice-convert');
+const { execFile } = require('child_process');
+const { PDFDocument, rgb, StandardFonts, degrees } = require('pdf-lib');
+const fontkit = require('@pdf-lib/fontkit');
+
+const app = express();
+const PORT = process.env.PORT || 8080;
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// Temporary upload storage (auto-cleaned)
+const upload = multer({ dest: os.tmpdir() });
+
+// In-memory store for documents being edited (docId -> file path)
+// NOTE: for production with multiple users, replace with a real DB + file storage (S3 etc.)
+const editSessions = {};
+
+// ---------- Health check ----------
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', service: 'ConvertKaro backend' });
+});
+
+// ---------- PDF -> Word ----------
+app.post('/api/convert/pdf-to-word', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.docx', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {}); // cleanup uploaded temp file
+    if (err) {
+      console.error('PDF->Word conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.docx');
+    res.send(done);
+  });
+});
+
+// ---------- Word -> PDF ----------
+app.post('/api/convert/word-to-pdf', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.pdf', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('Word->PDF conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.pdf');
+    res.send(done);
+  });
+});
+
+// ---------- Excel -> PDF ----------
+app.post('/api/convert/excel-to-pdf', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.pdf', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('Excel->PDF conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.pdf');
+    res.send(done);
+  });
+});
+
+// ---------- PDF -> Excel ----------
+// NOTE: LibreOffice's PDF->XLSX conversion is basic — it works best on PDFs
+// that already contain clean tables. Complex/scanned PDFs won't extract well.
+app.post('/api/convert/pdf-to-excel', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.xlsx', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('PDF->Excel conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.xlsx');
+    res.send(done);
+  });
+});
+
+// ---------- Compress PDF ----------
+// Uses Ghostscript to re-encode/downsample images inside the PDF.
+app.post('/api/compress', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const outputPath = path.join(os.tmpdir(), 'compressed-' + Date.now() + '.pdf');
+
+  // /screen = smallest size (lower quality), /ebook = good balance (default here)
+  const gsArgs = [
+    '-sDEVICE=pdfwrite',
+    '-dCompatibilityLevel=1.4',
+    '-dPDFSETTINGS=/ebook',
+    '-dNOPAUSE', '-dQUIET', '-dBATCH',
+    '-sOutputFile=' + outputPath,
+    inputPath
+  ];
+
+  execFile('gs', gsArgs, (err) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('Compress error:', err);
+      return res.status(500).json({ error: 'Compression failed' });
+    }
+    res.download(outputPath, 'compressed.pdf', () => {
+      fs.unlink(outputPath, () => {});
+    });
+  });
+});
+
+// ---------- PDF Editor: upload & start session ----------
+app.post('/api/edit/upload', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const docId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const storedPath = path.join(os.tmpdir(), 'edit-' + docId + '.pdf');
+  fs.renameSync(req.file.path, storedPath);
+  editSessions[docId] = storedPath;
+
+  res.json({ docId });
+});
+
+// ---------- PDF Editor: get page count / basic info ----------
+app.get('/api/edit/:docId/info', async (req, res) => {
+  const filePath = editSessions[req.params.docId];
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Document not found or session expired' });
+  }
+  const bytes = fs.readFileSync(filePath);
+  const pdfDoc = await PDFDocument.load(bytes);
+  res.json({ pageCount: pdfDoc.getPageCount() });
+});
+
+// ---------- PDF Editor: apply a text correction (white-box + new text overlay) ----------
+// body: { pageIndex, x, y, width, height, newText, fontSize, color:{r,g,b} }
+// Supports Hindi (Devanagari) text if font files are present in server/fonts/
+// (see README for the two font files you need to add — StandardFonts can only draw English/Latin text).
+app.post('/api/edit/:docId/apply', async (req, res) => {
+  const filePath = editSessions[req.params.docId];
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Document not found or session expired' });
+  }
+  const { pageIndex, x, y, width, height, newText, fontSize, color, bold, italic, underline } = req.body;
+
+  try {
+    const bytes = fs.readFileSync(filePath);
+    const pdfDoc = await PDFDocument.load(bytes);
+    const page = pdfDoc.getPage(pageIndex);
+
+    // Cover old text with a white rectangle first
+    page.drawRectangle({ x, y, width, height, color: rgb(1, 1, 1) });
+
+    const text = newText || '';
+    if (text.trim().length > 0) {
+      const font = await pickFont(pdfDoc, text, !!bold);
+      const c = color || { r: 0, g: 0, b: 0 };
+      const size = fontSize || 14;
+
+      const drawOpts = {
+        x, y: y + 2,
+        size,
+        font,
+        color: rgb(c.r, c.g, c.b),
+      };
+      // Synthetic italic: pdf-lib supports skewing text (xSkew) — this slants
+      // the glyphs like real italic, since Noto Sans Devanagari has no italic style.
+      if (italic) drawOpts.xSkew = degrees(12);
+
+      page.drawText(text, drawOpts);
+
+      if (underline) {
+        const textWidth = font.widthOfTextAtSize(text, size);
+        page.drawLine({
+          start: { x, y: y - 1 },
+          end: { x: x + textWidth, y: y - 1 },
+          thickness: Math.max(1, size * 0.06),
+          color: rgb(c.r, c.g, c.b),
+        });
+      }
+    }
+
+    const updatedBytes = await pdfDoc.save();
+    fs.writeFileSync(filePath, updatedBytes);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Edit apply error:', err);
+    res.status(500).json({ error: 'Edit failed', detail: err.message });
+  }
+});
+
+// Picks a Latin or Devanagari (Hindi) font depending on the text's script,
+// and embeds a Unicode-capable TTF via fontkit so non-Latin characters render.
+// Falls back to the built-in Helvetica font if the custom font files aren't present
+// (Hindi text will then fail to draw — see README to add the font files).
+// Bold uses a separate -Bold.ttf file if present; Devanagari has no italic style
+// in Noto Sans, so italic only visually applies to English/Latin text.
+const DEVANAGARI_RANGE = /[\u0900-\u097F]/;
+async function pickFont(pdfDoc, text, bold) {
+  const isHindi = DEVANAGARI_RANGE.test(text);
+  const base = isHindi ? 'NotoSansDevanagari' : 'NotoSans';
+  const weight = bold ? '-Bold' : '-Regular';
+  const fontPath = path.join(__dirname, 'fonts', base + weight + '.ttf');
+  const fallbackPath = path.join(__dirname, 'fonts', base + '-Regular.ttf');
+
+  const finalPath = fs.existsSync(fontPath) ? fontPath
+    : (fs.existsSync(fallbackPath) ? fallbackPath : null);
+
+  if (finalPath) {
+    pdfDoc.registerFontkit(fontkit);
+    const fontBytes = fs.readFileSync(finalPath);
+    return await pdfDoc.embedFont(fontBytes);
+  }
+  // Fallback — only works for plain English/Latin text
+  return await pdfDoc.embedFont(bold ? StandardFonts.HelveticaBold : StandardFonts.Helvetica);
+}
+
+
+// ---------- PDF Editor: download final edited file ----------
+app.get('/api/edit/:docId/download', (req, res) => {
+  const filePath = editSessions[req.params.docId];
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Document not found or session expired' });
+  }
+  res.download(filePath, 'edited.pdf');
+});
+
+// Cleanup old edit sessions every hour (files older than 2 hours)
+setInterval(() => {
+  const now = Date.now();
+  for (const [docId, filePath] of Object.entries(editSessions)) {
+    try {
+      const stat = fs.statSync(filePath);
+      if (now - stat.mtimeMs > 2 * 60 * 60 * 1000) {
+        fs.unlinkSync(filePath);
+        delete editSessions[docId];
+      }
+    } catch (e) {
+      delete editSessions[docId];
+    }
+  }
+}, 60 * 60 * 1000);
+
+app.listen(PORT, () => {
+  console.log('ConvertKaro backend running on port ' + PORT);
+});// ConvertKaro Backend Server
+// Handles: PDF -> Word, Word -> PDF, and PDF editing (via pdf-lib)
+
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
+const cors = require('cors');
+const libre = require('libreoffice-convert');
+const { execFile } = require('child_process');
+const { PDFDocument, rgb, StandardFonts, degrees } = require('pdf-lib');
+const fontkit = require('@pdf-lib/fontkit');
+
+const app = express();
+const PORT = process.env.PORT || 8080;
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// Temporary upload storage (auto-cleaned)
+const upload = multer({ dest: os.tmpdir() });
+
+// In-memory store for documents being edited (docId -> file path)
+// NOTE: for production with multiple users, replace with a real DB + file storage (S3 etc.)
+const editSessions = {};
+
+// ---------- Health check ----------
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', service: 'ConvertKaro backend' });
+});
+
+// ---------- PDF -> Word ----------
+app.post('/api/convert/pdf-to-word', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.docx', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {}); // cleanup uploaded temp file
+    if (err) {
+      console.error('PDF->Word conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.docx');
+    res.send(done);
+  });
+});
+
+// ---------- Word -> PDF ----------
+app.post('/api/convert/word-to-pdf', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.pdf', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('Word->PDF conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.pdf');
+    res.send(done);
+  });
+});
+
+// ---------- Excel -> PDF ----------
+app.post('/api/convert/excel-to-pdf', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.pdf', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('Excel->PDF conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.pdf');
+    res.send(done);
+  });
+});
+
+// ---------- PDF -> Excel ----------
+// NOTE: LibreOffice's PDF->XLSX conversion is basic — it works best on PDFs
+// that already contain clean tables. Complex/scanned PDFs won't extract well.
+app.post('/api/convert/pdf-to-excel', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.xlsx', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('PDF->Excel conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.xlsx');
+    res.send(done);
+  });
+});
+
+// ---------- Compress PDF ----------
+// Uses Ghostscript to re-encode/downsample images inside the PDF.
+app.post('/api/compress', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const outputPath = path.join(os.tmpdir(), 'compressed-' + Date.now() + '.pdf');
+
+  // /screen = smallest size (lower quality), /ebook = good balance (default here)
+  const gsArgs = [
+    '-sDEVICE=pdfwrite',
+    '-dCompatibilityLevel=1.4',
+    '-dPDFSETTINGS=/ebook',
+    '-dNOPAUSE', '-dQUIET', '-dBATCH',
+    '-sOutputFile=' + outputPath,
+    inputPath
+  ];
+
+  execFile('gs', gsArgs, (err) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('Compress error:', err);
+      return res.status(500).json({ error: 'Compression failed' });
+    }
+    res.download(outputPath, 'compressed.pdf', () => {
+      fs.unlink(outputPath, () => {});
+    });
+  });
+});
+
+// ---------- PDF Editor: upload & start session ----------
+app.post('/api/edit/upload', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const docId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const storedPath = path.join(os.tmpdir(), 'edit-' + docId + '.pdf');
+  fs.renameSync(req.file.path, storedPath);
+  editSessions[docId] = storedPath;
+
+  res.json({ docId });
+});
+
+// ---------- PDF Editor: get page count / basic info ----------
+app.get('/api/edit/:docId/info', async (req, res) => {
+  const filePath = editSessions[req.params.docId];
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Document not found or session expired' });
+  }
+  const bytes = fs.readFileSync(filePath);
+  const pdfDoc = await PDFDocument.load(bytes);
+  res.json({ pageCount: pdfDoc.getPageCount() });
+});
+
+// ---------- PDF Editor: apply a text correction (white-box + new text overlay) ----------
+// body: { pageIndex, x, y, width, height, newText, fontSize, color:{r,g,b} }
+// Supports Hindi (Devanagari) text if font files are present in server/fonts/
+// (see README for the two font files you need to add — StandardFonts can only draw English/Latin text).
+app.post('/api/edit/:docId/apply', async (req, res) => {
+  const filePath = editSessions[req.params.docId];
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Document not found or session expired' });
+  }
+  const { pageIndex, x, y, width, height, newText, fontSize, color, bold, italic, underline } = req.body;
+
+  try {
+    const bytes = fs.readFileSync(filePath);
+    const pdfDoc = await PDFDocument.load(bytes);
+    const page = pdfDoc.getPage(pageIndex);
+
+    // Cover old text with a white rectangle first
+    page.drawRectangle({ x, y, width, height, color: rgb(1, 1, 1) });
+
+    const text = newText || '';
+    if (text.trim().length > 0) {
+      const font = await pickFont(pdfDoc, text, !!bold);
+      const c = color || { r: 0, g: 0, b: 0 };
+      const size = fontSize || 14;
+
+      const drawOpts = {
+        x, y: y + 2,
+        size,
+        font,
+        color: rgb(c.r, c.g, c.b),
+      };
+      // Synthetic italic: pdf-lib supports skewing text (xSkew) — this slants
+      // the glyphs like real italic, since Noto Sans Devanagari has no italic style.
+      if (italic) drawOpts.xSkew = degrees(12);
+
+      page.drawText(text, drawOpts);
+
+      if (underline) {
+        const textWidth = font.widthOfTextAtSize(text, size);
+        page.drawLine({
+          start: { x, y: y - 1 },
+          end: { x: x + textWidth, y: y - 1 },
+          thickness: Math.max(1, size * 0.06),
+          color: rgb(c.r, c.g, c.b),
+        });
+      }
+    }
+
+    const updatedBytes = await pdfDoc.save();
+    fs.writeFileSync(filePath, updatedBytes);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Edit apply error:', err);
+    res.status(500).json({ error: 'Edit failed', detail: err.message });
+  }
+});
+
+// Picks a Latin or Devanagari (Hindi) font depending on the text's script,
+// and embeds a Unicode-capable TTF via fontkit so non-Latin characters render.
+// Falls back to the built-in Helvetica font if the custom font files aren't present
+// (Hindi text will then fail to draw — see README to add the font files).
+// Bold uses a separate -Bold.ttf file if present; Devanagari has no italic style
+// in Noto Sans, so italic only visually applies to English/Latin text.
+const DEVANAGARI_RANGE = /[\u0900-\u097F]/;
+async function pickFont(pdfDoc, text, bold) {
+  const isHindi = DEVANAGARI_RANGE.test(text);
+  const base = isHindi ? 'NotoSansDevanagari' : 'NotoSans';
+  const weight = bold ? '-Bold' : '-Regular';
+  const fontPath = path.join(__dirname, 'fonts', base + weight + '.ttf');
+  const fallbackPath = path.join(__dirname, 'fonts', base + '-Regular.ttf');
+
+  const finalPath = fs.existsSync(fontPath) ? fontPath
+    : (fs.existsSync(fallbackPath) ? fallbackPath : null);
+
+  if (finalPath) {
+    pdfDoc.registerFontkit(fontkit);
+    const fontBytes = fs.readFileSync(finalPath);
+    return await pdfDoc.embedFont(fontBytes);
+  }
+  // Fallback — only works for plain English/Latin text
+  return await pdfDoc.embedFont(bold ? StandardFonts.HelveticaBold : StandardFonts.Helvetica);
+}
+
+
+// ---------- PDF Editor: download final edited file ----------
+app.get('/api/edit/:docId/download', (req, res) => {
+  const filePath = editSessions[req.params.docId];
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Document not found or session expired' });
+  }
+  res.download(filePath, 'edited.pdf');
+});
+
+// Cleanup old edit sessions every hour (files older than 2 hours)
+setInterval(() => {
+  const now = Date.now();
+  for (const [docId, filePath] of Object.entries(editSessions)) {
+    try {
+      const stat = fs.statSync(filePath);
+      if (now - stat.mtimeMs > 2 * 60 * 60 * 1000) {
+        fs.unlinkSync(filePath);
+        delete editSessions[docId];
+      }
+    } catch (e) {
+      delete editSessions[docId];
+    }
+  }
+}, 60 * 60 * 1000);
+
+app.listen(PORT, () => {
+  console.log('ConvertKaro backend running on port ' + PORT);
+});// ConvertKaro Backend Server
+// Handles: PDF -> Word, Word -> PDF, and PDF editing (via pdf-lib)
+
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
+const cors = require('cors');
+const libre = require('libreoffice-convert');
+const { execFile } = require('child_process');
+const { PDFDocument, rgb, StandardFonts, degrees } = require('pdf-lib');
+const fontkit = require('@pdf-lib/fontkit');
+
+const app = express();
+const PORT = process.env.PORT || 8080;
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// Temporary upload storage (auto-cleaned)
+const upload = multer({ dest: os.tmpdir() });
+
+// In-memory store for documents being edited (docId -> file path)
+// NOTE: for production with multiple users, replace with a real DB + file storage (S3 etc.)
+const editSessions = {};
+
+// ---------- Health check ----------
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', service: 'ConvertKaro backend' });
+});
+
+// ---------- PDF -> Word ----------
+app.post('/api/convert/pdf-to-word', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.docx', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {}); // cleanup uploaded temp file
+    if (err) {
+      console.error('PDF->Word conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.docx');
+    res.send(done);
+  });
+});
+
+// ---------- Word -> PDF ----------
+app.post('/api/convert/word-to-pdf', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.pdf', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('Word->PDF conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.pdf');
+    res.send(done);
+  });
+});
+
+// ---------- Excel -> PDF ----------
+app.post('/api/convert/excel-to-pdf', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.pdf', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('Excel->PDF conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.pdf');
+    res.send(done);
+  });
+});
+
+// ---------- PDF -> Excel ----------
+// NOTE: LibreOffice's PDF->XLSX conversion is basic — it works best on PDFs
+// that already contain clean tables. Complex/scanned PDFs won't extract well.
+app.post('/api/convert/pdf-to-excel', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.xlsx', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('PDF->Excel conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.xlsx');
+    res.send(done);
+  });
+});
+
+// ---------- Compress PDF ----------
+// Uses Ghostscript to re-encode/downsample images inside the PDF.
+app.post('/api/compress', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const outputPath = path.join(os.tmpdir(), 'compressed-' + Date.now() + '.pdf');
+
+  // /screen = smallest size (lower quality), /ebook = good balance (default here)
+  const gsArgs = [
+    '-sDEVICE=pdfwrite',
+    '-dCompatibilityLevel=1.4',
+    '-dPDFSETTINGS=/ebook',
+    '-dNOPAUSE', '-dQUIET', '-dBATCH',
+    '-sOutputFile=' + outputPath,
+    inputPath
+  ];
+
+  execFile('gs', gsArgs, (err) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('Compress error:', err);
+      return res.status(500).json({ error: 'Compression failed' });
+    }
+    res.download(outputPath, 'compressed.pdf', () => {
+      fs.unlink(outputPath, () => {});
+    });
+  });
+});
+
+// ---------- PDF Editor: upload & start session ----------
+app.post('/api/edit/upload', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const docId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const storedPath = path.join(os.tmpdir(), 'edit-' + docId + '.pdf');
+  fs.renameSync(req.file.path, storedPath);
+  editSessions[docId] = storedPath;
+
+  res.json({ docId });
+});
+
+// ---------- PDF Editor: get page count / basic info ----------
+app.get('/api/edit/:docId/info', async (req, res) => {
+  const filePath = editSessions[req.params.docId];
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Document not found or session expired' });
+  }
+  const bytes = fs.readFileSync(filePath);
+  const pdfDoc = await PDFDocument.load(bytes);
+  res.json({ pageCount: pdfDoc.getPageCount() });
+});
+
+// ---------- PDF Editor: apply a text correction (white-box + new text overlay) ----------
+// body: { pageIndex, x, y, width, height, newText, fontSize, color:{r,g,b} }
+// Supports Hindi (Devanagari) text if font files are present in server/fonts/
+// (see README for the two font files you need to add — StandardFonts can only draw English/Latin text).
+app.post('/api/edit/:docId/apply', async (req, res) => {
+  const filePath = editSessions[req.params.docId];
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Document not found or session expired' });
+  }
+  const { pageIndex, x, y, width, height, newText, fontSize, color, bold, italic, underline } = req.body;
+
+  try {
+    const bytes = fs.readFileSync(filePath);
+    const pdfDoc = await PDFDocument.load(bytes);
+    const page = pdfDoc.getPage(pageIndex);
+
+    // Cover old text with a white rectangle first
+    page.drawRectangle({ x, y, width, height, color: rgb(1, 1, 1) });
+
+    const text = newText || '';
+    if (text.trim().length > 0) {
+      const font = await pickFont(pdfDoc, text, !!bold);
+      const c = color || { r: 0, g: 0, b: 0 };
+      const size = fontSize || 14;
+
+      const drawOpts = {
+        x, y: y + 2,
+        size,
+        font,
+        color: rgb(c.r, c.g, c.b),
+      };
+      // Synthetic italic: pdf-lib supports skewing text (xSkew) — this slants
+      // the glyphs like real italic, since Noto Sans Devanagari has no italic style.
+      if (italic) drawOpts.xSkew = degrees(12);
+
+      page.drawText(text, drawOpts);
+
+      if (underline) {
+        const textWidth = font.widthOfTextAtSize(text, size);
+        page.drawLine({
+          start: { x, y: y - 1 },
+          end: { x: x + textWidth, y: y - 1 },
+          thickness: Math.max(1, size * 0.06),
+          color: rgb(c.r, c.g, c.b),
+        });
+      }
+    }
+
+    const updatedBytes = await pdfDoc.save();
+    fs.writeFileSync(filePath, updatedBytes);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Edit apply error:', err);
+    res.status(500).json({ error: 'Edit failed', detail: err.message });
+  }
+});
+
+// Picks a Latin or Devanagari (Hindi) font depending on the text's script,
+// and embeds a Unicode-capable TTF via fontkit so non-Latin characters render.
+// Falls back to the built-in Helvetica font if the custom font files aren't present
+// (Hindi text will then fail to draw — see README to add the font files).
+// Bold uses a separate -Bold.ttf file if present; Devanagari has no italic style
+// in Noto Sans, so italic only visually applies to English/Latin text.
+const DEVANAGARI_RANGE = /[\u0900-\u097F]/;
+async function pickFont(pdfDoc, text, bold) {
+  const isHindi = DEVANAGARI_RANGE.test(text);
+  const base = isHindi ? 'NotoSansDevanagari' : 'NotoSans';
+  const weight = bold ? '-Bold' : '-Regular';
+  const fontPath = path.join(__dirname, 'fonts', base + weight + '.ttf');
+  const fallbackPath = path.join(__dirname, 'fonts', base + '-Regular.ttf');
+
+  const finalPath = fs.existsSync(fontPath) ? fontPath
+    : (fs.existsSync(fallbackPath) ? fallbackPath : null);
+
+  if (finalPath) {
+    pdfDoc.registerFontkit(fontkit);
+    const fontBytes = fs.readFileSync(finalPath);
+    return await pdfDoc.embedFont(fontBytes);
+  }
+  // Fallback — only works for plain English/Latin text
+  return await pdfDoc.embedFont(bold ? StandardFonts.HelveticaBold : StandardFonts.Helvetica);
+}
+
+
+// ---------- PDF Editor: download final edited file ----------
+app.get('/api/edit/:docId/download', (req, res) => {
+  const filePath = editSessions[req.params.docId];
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Document not found or session expired' });
+  }
+  res.download(filePath, 'edited.pdf');
+});
+
+// Cleanup old edit sessions every hour (files older than 2 hours)
+setInterval(() => {
+  const now = Date.now();
+  for (const [docId, filePath] of Object.entries(editSessions)) {
+    try {
+      const stat = fs.statSync(filePath);
+      if (now - stat.mtimeMs > 2 * 60 * 60 * 1000) {
+        fs.unlinkSync(filePath);
+        delete editSessions[docId];
+      }
+    } catch (e) {
+      delete editSessions[docId];
+    }
+  }
+}, 60 * 60 * 1000);
+
+app.listen(PORT, () => {
+  console.log('ConvertKaro backend running on port ' + PORT);
+});// ConvertKaro Backend Server
+// Handles: PDF -> Word, Word -> PDF, and PDF editing (via pdf-lib)
+
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
+const cors = require('cors');
+const libre = require('libreoffice-convert');
+const { execFile } = require('child_process');
+const { PDFDocument, rgb, StandardFonts, degrees } = require('pdf-lib');
+const fontkit = require('@pdf-lib/fontkit');
+
+const app = express();
+const PORT = process.env.PORT || 8080;
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// Temporary upload storage (auto-cleaned)
+const upload = multer({ dest: os.tmpdir() });
+
+// In-memory store for documents being edited (docId -> file path)
+// NOTE: for production with multiple users, replace with a real DB + file storage (S3 etc.)
+const editSessions = {};
+
+// ---------- Health check ----------
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', service: 'ConvertKaro backend' });
+});
+
+// ---------- PDF -> Word ----------
+app.post('/api/convert/pdf-to-word', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.docx', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {}); // cleanup uploaded temp file
+    if (err) {
+      console.error('PDF->Word conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.docx');
+    res.send(done);
+  });
+});
+
+// ---------- Word -> PDF ----------
+app.post('/api/convert/word-to-pdf', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.pdf', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('Word->PDF conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.pdf');
+    res.send(done);
+  });
+});
+
+// ---------- Excel -> PDF ----------
+app.post('/api/convert/excel-to-pdf', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.pdf', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('Excel->PDF conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.pdf');
+    res.send(done);
+  });
+});
+
+// ---------- PDF -> Excel ----------
+// NOTE: LibreOffice's PDF->XLSX conversion is basic — it works best on PDFs
+// that already contain clean tables. Complex/scanned PDFs won't extract well.
+app.post('/api/convert/pdf-to-excel', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const inputBuf = fs.readFileSync(inputPath);
+
+  libre.convert(inputBuf, '.xlsx', undefined, (err, done) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('PDF->Excel conversion error:', err);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=converted.xlsx');
+    res.send(done);
+  });
+});
+
+// ---------- Compress PDF ----------
+// Uses Ghostscript to re-encode/downsample images inside the PDF.
+app.post('/api/compress', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const inputPath = req.file.path;
+  const outputPath = path.join(os.tmpdir(), 'compressed-' + Date.now() + '.pdf');
+
+  // /screen = smallest size (lower quality), /ebook = good balance (default here)
+  const gsArgs = [
+    '-sDEVICE=pdfwrite',
+    '-dCompatibilityLevel=1.4',
+    '-dPDFSETTINGS=/ebook',
+    '-dNOPAUSE', '-dQUIET', '-dBATCH',
+    '-sOutputFile=' + outputPath,
+    inputPath
+  ];
+
+  execFile('gs', gsArgs, (err) => {
+    fs.unlink(inputPath, () => {});
+    if (err) {
+      console.error('Compress error:', err);
+      return res.status(500).json({ error: 'Compression failed' });
+    }
+    res.download(outputPath, 'compressed.pdf', () => {
+      fs.unlink(outputPath, () => {});
+    });
+  });
+});
+
+// ---------- PDF Editor: upload & start session ----------
+app.post('/api/edit/upload', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const docId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const storedPath = path.join(os.tmpdir(), 'edit-' + docId + '.pdf');
+  fs.renameSync(req.file.path, storedPath);
+  editSessions[docId] = storedPath;
+
+  res.json({ docId });
+});
+
+// ---------- PDF Editor: get page count / basic info ----------
+app.get('/api/edit/:docId/info', async (req, res) => {
+  const filePath = editSessions[req.params.docId];
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Document not found or session expired' });
+  }
+  const bytes = fs.readFileSync(filePath);
+  const pdfDoc = await PDFDocument.load(bytes);
+  res.json({ pageCount: pdfDoc.getPageCount() });
+});
+
+// ---------- PDF Editor: apply a text correction (white-box + new text overlay) ----------
+// body: { pageIndex, x, y, width, height, newText, fontSize, color:{r,g,b} }
+// Supports Hindi (Devanagari) text if font files are present in server/fonts/
+// (see README for the two font files you need to add — StandardFonts can only draw English/Latin text).
+app.post('/api/edit/:docId/apply', async (req, res) => {
+  const filePath = editSessions[req.params.docId];
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Document not found or session expired' });
+  }
+  const { pageIndex, x, y, width, height, newText, fontSize, color, bold, italic, underline } = req.body;
+
+  try {
+    const bytes = fs.readFileSync(filePath);
+    const pdfDoc = await PDFDocument.load(bytes);
+    const page = pdfDoc.getPage(pageIndex);
+
+    // Cover old text with a white rectangle first
+    page.drawRectangle({ x, y, width, height, color: rgb(1, 1, 1) });
+
+    const text = newText || '';
+    if (text.trim().length > 0) {
+      const font = await pickFont(pdfDoc, text, !!bold);
+      const c = color || { r: 0, g: 0, b: 0 };
+      const size = fontSize || 14;
+
+      const drawOpts = {
+        x, y: y + 2,
+        size,
+        font,
+        color: rgb(c.r, c.g, c.b),
+      };
+      // Synthetic italic: pdf-lib supports skewing text (xSkew) — this slants
+      // the glyphs like real italic, since Noto Sans Devanagari has no italic style.
+      if (italic) drawOpts.xSkew = degrees(12);
+
+      page.drawText(text, drawOpts);
+
+      if (underline) {
+        const textWidth = font.widthOfTextAtSize(text, size);
+        page.drawLine({
+          start: { x, y: y - 1 },
+          end: { x: x + textWidth, y: y - 1 },
+          thickness: Math.max(1, size * 0.06),
+          color: rgb(c.r, c.g, c.b),
+        });
+      }
+    }
+
+    const updatedBytes = await pdfDoc.save();
+    fs.writeFileSync(filePath, updatedBytes);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Edit apply error:', err);
+    res.status(500).json({ error: 'Edit failed', detail: err.message });
+  }
+});
+
+// Picks a Latin or Devanagari (Hindi) font depending on the text's script,
+// and embeds a Unicode-capable TTF via fontkit so non-Latin characters render.
+// Falls back to the built-in Helvetica font if the custom font files aren't present
+// (Hindi text will then fail to draw — see README to add the font files).
+// Bold uses a separate -Bold.ttf file if present; Devanagari has no italic style
+// in Noto Sans, so italic only visually applies to English/Latin text.
+const DEVANAGARI_RANGE = /[\u0900-\u097F]/;
+async function pickFont(pdfDoc, text, bold) {
+  const isHindi = DEVANAGARI_RANGE.test(text);
+  const base = isHindi ? 'NotoSansDevanagari' : 'NotoSans';
+  const weight = bold ? '-Bold' : '-Regular';
+  const fontPath = path.join(__dirname, 'fonts', base + weight + '.ttf');
+  const fallbackPath = path.join(__dirname, 'fonts', base + '-Regular.ttf');
+
+  const finalPath = fs.existsSync(fontPath) ? fontPath
+    : (fs.existsSync(fallbackPath) ? fallbackPath : null);
+
+  if (finalPath) {
+    pdfDoc.registerFontkit(fontkit);
+    const fontBytes = fs.readFileSync(finalPath);
+    return await pdfDoc.embedFont(fontBytes);
+  }
+  // Fallback — only works for plain English/Latin text
+  return await pdfDoc.embedFont(bold ? StandardFonts.HelveticaBold : StandardFonts.Helvetica);
+}
+
+
+// ---------- PDF Editor: download final edited file ----------
+app.get('/api/edit/:docId/download', (req, res) => {
+  const filePath = editSessions[req.params.docId];
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Document not found or session expired' });
+  }
+  res.download(filePath, 'edited.pdf');
+});
+
+// Cleanup old edit sessions every hour (files older than 2 hours)
+setInterval(() => {
+  const now = Date.now();
+  for (const [docId, filePath] of Object.entries(editSessions)) {
+    try {
+      const stat = fs.statSync(filePath);
+      if (now - stat.mtimeMs > 2 * 60 * 60 * 1000) {
+        fs.unlinkSync(filePath);
+        delete editSessions[docId];
+      }
+    } catch (e) {
+      delete editSessions[docId];
+    }
+  }
+}, 60 * 60 * 1000);
+
+app.listen(PORT, () => {
+  console.log('ConvertKaro backend running on port ' + PORT);
 });

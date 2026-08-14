@@ -31,6 +31,19 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'ConvertKaro backend' });
 });
 
+// ---------- Debug: check if soffice/gs are actually installed ----------
+// Temporary diagnostic route — visit /api/debug/tools in the browser to see
+// exactly what's available on the server. Safe to remove once things work.
+app.get('/api/debug/tools', (req, res) => {
+  const { exec } = require('child_process');
+  exec('echo PATH=$PATH; echo ---; which soffice; echo ---; which libreoffice; echo ---; which gs; echo ---; ls /nix/store 2>/dev/null | grep -i libreoffice | head -5; echo ---; ls /nix/store 2>/dev/null | grep -i ghostscript | head -5',
+    { timeout: 10000 },
+    (err, stdout, stderr) => {
+      res.type('text/plain').send('STDOUT:\n' + stdout + '\n\nSTDERR:\n' + stderr + '\n\nERR:\n' + (err ? err.message : 'none'));
+    }
+  );
+});
+
 // ---------- PDF -> Word ----------
 app.post('/api/convert/pdf-to-word', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });

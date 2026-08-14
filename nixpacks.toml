@@ -1,8 +1,11 @@
 # This tells Railway's build system (Nixpacks) to install LibreOffice
 # (for Word/Excel <-> PDF) and Ghostscript (for PDF compression).
+# Using aptPkgs (not nixPkgs) so these land in the standard /usr/bin location
+# that the libreoffice-convert library and our own gs calls expect.
 
 [phases.setup]
-nixPkgs = ["nodejs_18", "libreoffice", "ghostscript"]
+nixPkgs = ["nodejs_18"]
+aptPkgs = ["libreoffice", "ghostscript"]
 
 [phases.install]
 cmds = ["npm install"]

@@ -42,7 +42,7 @@ app.post('/api/convert/pdf-to-word', upload.single('file'), async (req, res) => 
     fs.unlink(inputPath, () => {}); // cleanup uploaded temp file
     if (err) {
       console.error('PDF->Word conversion error:', err);
-      return res.status(500).json({ error: 'Conversion failed' });
+      return res.status(500).json({ error: 'Conversion failed', detail: err.message || String(err) });
     }
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', 'attachment; filename=converted.docx');
@@ -61,7 +61,7 @@ app.post('/api/convert/word-to-pdf', upload.single('file'), async (req, res) => 
     fs.unlink(inputPath, () => {});
     if (err) {
       console.error('Word->PDF conversion error:', err);
-      return res.status(500).json({ error: 'Conversion failed' });
+      return res.status(500).json({ error: 'Conversion failed', detail: err.message || String(err) });
     }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=converted.pdf');
@@ -80,7 +80,7 @@ app.post('/api/convert/excel-to-pdf', upload.single('file'), async (req, res) =>
     fs.unlink(inputPath, () => {});
     if (err) {
       console.error('Excel->PDF conversion error:', err);
-      return res.status(500).json({ error: 'Conversion failed' });
+      return res.status(500).json({ error: 'Conversion failed', detail: err.message || String(err) });
     }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=converted.pdf');
@@ -101,7 +101,7 @@ app.post('/api/convert/pdf-to-excel', upload.single('file'), async (req, res) =>
     fs.unlink(inputPath, () => {});
     if (err) {
       console.error('PDF->Excel conversion error:', err);
-      return res.status(500).json({ error: 'Conversion failed' });
+      return res.status(500).json({ error: 'Conversion failed', detail: err.message || String(err) });
     }
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=converted.xlsx');
@@ -131,7 +131,7 @@ app.post('/api/compress', upload.single('file'), async (req, res) => {
     fs.unlink(inputPath, () => {});
     if (err) {
       console.error('Compress error:', err);
-      return res.status(500).json({ error: 'Compression failed' });
+      return res.status(500).json({ error: 'Compression failed', detail: err.message });
     }
     res.download(outputPath, 'compressed.pdf', () => {
       fs.unlink(outputPath, () => {});

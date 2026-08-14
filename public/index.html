@@ -354,4 +354,429 @@
       <input type="file" id="compressInput" accept=".pdf" style="position:absolute;width:1px;height:1px;opacity:0;">
     </div>
     <div class="status" id="compressStatus"></div>
-    <div class="result
+    <div class="resultlist" id="compressResult"></div>
+  </div>
+  <div class="toolpage" id="tool-word2pdf">
+    <div class="back" onclick="goHome()"><span data-i18n="backbtn">← Wapas</span></div>
+    <div class="toolhead"><h2 data-i18n="h256">Word to PDF</h2><p data-i18n="p57">.docx file ko PDF mein badlo.</p></div>
+    <div class="dropzone">
+      <label class="bigbtn" for="word2pdfInput" data-i18n="btn74">Word File Choose Karo</label>
+      <input type="file" id="word2pdfInput" accept=".docx" style="position:absolute;width:1px;height:1px;opacity:0;">
+    </div>
+    <div class="status" id="word2pdfStatus"></div>
+    <div class="resultlist" id="word2pdfResult"></div>
+  </div>
+  <div class="toolpage" id="tool-pdf2word">
+    <div class="back" onclick="goHome()"><span data-i18n="backbtn">← Wapas</span></div>
+    <div class="toolhead"><h2 data-i18n="h258">PDF to Word</h2><p data-i18n="p59">PDF ko editable Word (.docx) file banao.</p></div>
+    <div class="dropzone">
+      <label class="bigbtn" for="pdf2wordInput" data-i18n="btn75">PDF File Choose Karo</label>
+      <input type="file" id="pdf2wordInput" accept=".pdf" style="position:absolute;width:1px;height:1px;opacity:0;">
+    </div>
+    <div class="status" id="pdf2wordStatus"></div>
+    <div class="resultlist" id="pdf2wordResult"></div>
+  </div>
+  <div class="toolpage" id="tool-excel2pdf">
+    <div class="back" onclick="goHome()"><span data-i18n="backbtn">← Wapas</span></div>
+    <div class="toolhead"><h2 data-i18n="h260">Excel to PDF</h2><p data-i18n="p61">.xlsx file ko PDF mein badlo.</p></div>
+    <div class="dropzone">
+      <label class="bigbtn" for="excel2pdfInput" data-i18n="btn76">Excel File Choose Karo</label>
+      <input type="file" id="excel2pdfInput" accept=".xlsx" style="position:absolute;width:1px;height:1px;opacity:0;">
+    </div>
+    <div class="status" id="excel2pdfStatus"></div>
+    <div class="resultlist" id="excel2pdfResult"></div>
+  </div>
+  <div class="toolpage" id="tool-pdf2excel">
+    <div class="back" onclick="goHome()"><span data-i18n="backbtn">← Wapas</span></div>
+    <div class="toolhead"><h2 data-i18n="h262">PDF to Excel</h2><p data-i18n="p63">PDF ke tables ko Excel mein nikalo.</p></div>
+    <div class="dropzone">
+      <label class="bigbtn" for="pdf2excelInput" data-i18n="btn77">PDF File Choose Karo</label>
+      <input type="file" id="pdf2excelInput" accept=".pdf" style="position:absolute;width:1px;height:1px;opacity:0;">
+    </div>
+    <div class="status" id="pdf2excelStatus"></div>
+    <div class="resultlist" id="pdf2excelResult"></div>
+  </div>
+  <div class="toolpage" id="tool-editpdf">
+    <div class="back" onclick="goHome()"><span data-i18n="backbtn">← Wapas</span></div>
+    <div class="toolhead"><h2 data-i18n="h264">Edit PDF</h2><p data-i18n="p65">Jald aa raha hai — abhi banaya ja raha hai.</p></div>
+    <div class="unavail">
+      <p data-i18n="unavail82">PDF Editor par kaam chal raha hai — asli PDF ke text ko usi font/style mein select karke edit karna (jaisa professional PDF editors karte hain). Ye feature jald add hoga. Tab tak, is website ke baaki sab tools (Merge, Split, Compress, Word/Excel convert, aur Enhance) full working hain.</p>
+    </div>
+  </div>
+
+  <div class="toolpage" id="tool-imgenhance">
+    <div class="back" onclick="goHome()"><span data-i18n="backbtn">← Wapas</span></div>
+    <div class="toolhead"><h2 data-i18n="h266">Enhance Image</h2><p data-i18n="p67">Halki dhundhli ya soft photo ko sharp/crisp banao — automatic high quality.</p></div>
+    <div class="dropzone">
+      <label class="bigbtn" for="imgenhanceInput" data-i18n="btn78">Photo Choose Karo</label>
+      <input type="file" id="imgenhanceInput" accept="image/*" multiple style="position:absolute;width:1px;height:1px;opacity:0;">
+    </div>
+    <div class="status" id="imgenhanceStatus"></div>
+    <div class="resultlist" id="imgenhanceResult"></div>
+    <div class="unavail" style="margin-top:20px;">
+      <p>Note: Ye tool edges/text ko sharp karta hai. Bahut zyada blurry ya low-resolution photo ko poori tarah "HD" banana AI super-resolution technology maangta hai, jo abhi is website mein nahi hai.</p>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footwrap">
+    <div class="foottitle">Website Traffic Statistics</div>
+    <div class="counters">
+      <div class="counterbox"><div class="num" id="statVisitors">0</div><div class="lbl">Total Visitors</div></div>
+      <div class="counterbox"><div class="num" id="statConversions">0</div><div class="lbl">Files Converted</div></div>
+      <div class="counterbox"><div class="num" id="statStates">0</div><div class="lbl">States Reached</div></div>
+      <div class="counterbox"><div class="num" id="statToday">0</div><div class="lbl">Visitors Today</div></div>
+    </div>
+    <div class="footnote">Ye demo counter hai. Website live hone aur Google Analytics connect hone ke baad yahan real visitor/conversion data dikhega.</div>
+  </div>
+</footer>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const { PDFDocument } = PDFLib;
+
+// ---------- GLOBAL DRAG & DROP (works for every tool automatically) ----------
+document.querySelectorAll('.dropzone').forEach(zone=>{
+  const label = zone.querySelector('label.bigbtn');
+  if(!label) return;
+  if(!zone.querySelector('.drag-hint')){
+    const hint = document.createElement('p');
+    hint.className='hint drag-hint';
+    hint.style.marginTop='10px';
+    hint.textContent='...ya file yahan drag karke chodo';
+    zone.appendChild(hint);
+  }
+  const inputId = label.getAttribute('for');
+  const input = document.getElementById(inputId);
+  if(!input) return;
+  zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.style.borderColor='var(--red)'; zone.style.background='var(--red-pale)'; });
+  zone.addEventListener('dragleave', ()=>{ zone.style.borderColor=''; zone.style.background=''; });
+  zone.addEventListener('drop', e=>{
+    e.preventDefault();
+    zone.style.borderColor=''; zone.style.background='';
+    const dt = new DataTransfer();
+    const incoming = Array.from(e.dataTransfer.files);
+    const existing = input.multiple ? Array.from(input.files||[]) : [];
+    (input.multiple ? existing.concat(incoming) : incoming).forEach(f=>dt.items.add(f));
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change', {bubbles:true}));
+  });
+});
+
+function goHome(){
+  document.getElementById('home').style.display='block';
+  document.querySelectorAll('.toolpage').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.navlink').forEach(n=>n.classList.remove('active'));
+}
+function openTool(id){
+  document.getElementById('home').style.display='none';
+  document.querySelectorAll('.toolpage').forEach(p=>p.classList.remove('active'));
+  const el=document.getElementById('tool-'+id);
+  if(el) el.classList.add('active');
+  window.scrollTo(0,0);
+}
+
+// ---------- CATEGORY FILTER ----------
+function filterCat(cat){
+  document.querySelectorAll('.fpill').forEach(p=>p.classList.toggle('sel', p.dataset.cat===cat));
+  document.querySelectorAll('.cat-title, .grid').forEach(el=>{
+    el.style.display = (cat==='all' || el.dataset.cat===cat) ? '' : 'none';
+  });
+}
+
+// ---------- LANGUAGE SWITCH (covers the whole site) ----------
+const heroTranslations = {
+  hi: {
+    heroTitle: "पीडीएफ का हर काम, एक ही जगह",
+    heroSub: "सरल और आसान — बस फ़ाइल अपलोड करो और काम हो जाए।"
+  },
+  en: {
+    heroTitle: "Every PDF task, in one place",
+    heroSub: "Simple and easy — just upload your file and get it done."
+  },
+  hg: {
+    heroTitle: "Ek jagah, PDF ka har kaam",
+    heroSub: "Simple aur easy — bas file upload karo aur kaam ho jaye."
+  }
+};
+const uiTranslations = {"nav1": {"hg": "Merge PDF", "en": "Merge PDF", "hi": "पीडीएफ जोड़ें"}, "nav2": {"hg": "Split PDF", "en": "Split PDF", "hi": "पीडीएफ अलग करें"}, "nav3": {"hg": "Compress PDF", "en": "Compress PDF", "hi": "पीडीएफ छोटा करें"}, "nav4": {"hg": "PDF to Word", "en": "PDF to Word", "hi": "पीडीएफ से वर्ड"}, "nav5": {"hg": "Word to PDF", "en": "Word to PDF", "hi": "वर्ड से पीडीएफ"}, "nav6": {"hg": "All Tools", "en": "All Tools", "hi": "सभी टूल्स"}, "fpill7": {"hg": "All", "en": "All", "hi": "सभी"}, "fpill8": {"hg": "Organize PDF", "en": "Organize PDF", "hi": "पीडीएफ व्यवस्थित करें"}, "fpill9": {"hg": "Optimize PDF", "en": "Optimize PDF", "hi": "पीडीएफ ऑप्टिमाइज़ करें"}, "fpill10": {"hg": "Convert to PDF", "en": "Convert to PDF", "hi": "पीडीएफ में बदलें"}, "fpill11": {"hg": "Convert from PDF", "en": "Convert from PDF", "hi": "पीडीएफ से बदलें"}, "fpill12": {"hg": "Edit PDF", "en": "Edit PDF", "hi": "पीडीएफ संपादित करें"}, "fpill13": {"hg": "Image Tools", "en": "Image Tools", "hi": "इमेज टूल्स"}, "cat14": {"hg": "Organize PDF", "en": "Organize PDF", "hi": "पीडीएफ व्यवस्थित करें"}, "tname20": {"hg": "Merge PDF", "en": "Merge PDF", "hi": "पीडीएफ जोड़ें"}, "tdesc21": {"hg": "Kai PDF files ko jis order mein chaho usi order mein ek PDF mein jodo.", "en": "Combine multiple PDF files into one, in whatever order you like.", "hi": "कई पीडीएफ फाइलों को अपनी पसंद के क्रम में एक पीडीएफ में जोड़ें।"}, "tname22": {"hg": "Split PDF", "en": "Split PDF", "hi": "पीडीएफ अलग करें"}, "tdesc23": {"hg": "Ek PDF ke har page ko alag file bana do, ya jo chaho wo page nikaal lo.", "en": "Turn every page of a PDF into a separate file, or pull out any page you want.", "hi": "पीडीएफ के हर पेज को अलग फाइल बनाएं, या मनचाहा पेज निकालें।"}, "tname24": {"hg": "Remove Pages", "en": "Remove Pages", "hi": "पेज हटाएं"}, "tdesc25": {"hg": "PDF mein se faltu ya galat pages hatao, baaki file waisi ki waisi rahegi.", "en": "Delete unwanted pages from a PDF — the rest of the file stays untouched.", "hi": "पीडीएफ से अनावश्यक पेज हटाएं, बाकी फाइल वैसी ही रहेगी।"}, "cat15": {"hg": "Optimize PDF", "en": "Optimize PDF", "hi": "पीडीएफ ऑप्टिमाइज़ करें"}, "tname26": {"hg": "Compress PDF", "en": "Compress PDF", "hi": "पीडीएफ छोटा करें"}, "tdesc27": {"hg": "Quality kharab kiye bina file ka size chhota karo.", "en": "Shrink file size without ruining the quality.", "hi": "क्वालिटी खराब किए बिना फाइल का साइज़ छोटा करें।"}, "cat16": {"hg": "Convert to PDF", "en": "Convert to PDF", "hi": "पीडीएफ में बदलें"}, "tname28": {"hg": "JPG/PNG to PDF", "en": "JPG/PNG to PDF", "hi": "जेपीजी/पीएनजी से पीडीएफ"}, "tdesc29": {"hg": "Ek ya kai photos ko jodkar ek PDF file bana do.", "en": "Combine one or more photos into a single PDF file.", "hi": "एक या कई फोटो जोड़कर एक पीडीएफ फाइल बनाएं।"}, "tname30": {"hg": "Word to PDF", "en": "Word to PDF", "hi": "वर्ड से पीडीएफ"}, "tdesc31": {"hg": ".docx file ko PDF mein badlo, formatting waisi hi rahegi.", "en": "Convert a .docx file to PDF — formatting stays intact.", "hi": ".docx फाइल को पीडीएफ में बदलें, फॉर्मेटिंग वैसी ही रहेगी।"}, "tname32": {"hg": "Excel to PDF", "en": "Excel to PDF", "hi": "एक्सेल से पीडीएफ"}, "tdesc33": {"hg": ".xlsx spreadsheet ko print-ready PDF banao.", "en": "Turn an .xlsx spreadsheet into a print-ready PDF.", "hi": ".xlsx स्प्रेडशीट को प्रिंट-रेडी पीडीएफ बनाएं।"}, "cat17": {"hg": "Convert from PDF", "en": "Convert from PDF", "hi": "पीडीएफ से बदलें"}, "tname34": {"hg": "PDF to JPG", "en": "PDF to JPG", "hi": "पीडीएफ से जेपीजी"}, "tdesc35": {"hg": "PDF ke har page ko ek JPG image mein badlo.", "en": "Turn every page of a PDF into a JPG image.", "hi": "पीडीएफ के हर पेज को जेपीजी इमेज में बदलें।"}, "tname36": {"hg": "PDF to Word", "en": "PDF to Word", "hi": "पीडीएफ से वर्ड"}, "tdesc37": {"hg": "PDF ko editable Word (.docx) document bana do.", "en": "Turn a PDF into an editable Word (.docx) document.", "hi": "पीडीएफ को संपादन योग्य वर्ड (.docx) दस्तावेज़ बनाएं।"}, "tname38": {"hg": "PDF to Excel", "en": "PDF to Excel", "hi": "पीडीएफ से एक्सेल"}, "tdesc39": {"hg": "PDF ke andar ke tables Excel sheet mein nikaal lo.", "en": "Pull tables out of a PDF into an Excel sheet.", "hi": "पीडीएफ के अंदर की टेबल्स को एक्सेल शीट में निकालें।"}, "cat18": {"hg": "Edit PDF", "en": "Edit PDF", "hi": "पीडीएफ संपादित करें"}, "tname40": {"hg": "Edit PDF", "en": "Edit PDF", "hi": "पीडीएफ संपादित करें"}, "tdesc41": {"hg": "PDF ke andar text edit karo, correction karo, seedha browser mein.", "en": "Edit text inside a PDF, make corrections, right in the browser.", "hi": "पीडीएफ के अंदर टेक्स्ट संपादित करें, सुधार करें, सीधे ब्राउज़र में।"}, "cat19": {"hg": "Image Tools", "en": "Image Tools", "hi": "इमेज टूल्स"}, "tname42": {"hg": "Enhance Image", "en": "Enhance Image", "hi": "इमेज बेहतर करें"}, "tdesc43": {"hg": "Halki dhundhli photo ko sharp/crisp karo.", "en": "Sharpen a slightly blurry or soft photo.", "hi": "हल्की धुंधली फोटो को शार्प/स्पष्ट करें।"}, "backbtn": {"hg": "← Wapas", "en": "← Back", "hi": "← वापस"}, "h244": {"hg": "Merge PDF", "en": "Merge PDF", "hi": "पीडीएफ जोड़ें"}, "p45": {"hg": "Kai PDF files ko ek PDF mein jodo — jis order mein upload karoge, usi order mein jud jayenge.", "en": "Combine multiple PDF files into one — they'll join in the order you upload them.", "hi": "कई पीडीएफ फाइलों को एक में जोड़ें — जिस क्रम में अपलोड करेंगे, उसी क्रम में जुड़ेंगी।"}, "btn68": {"hg": "PDF Files Choose Karo", "en": "Choose PDF Files", "hi": "पीडीएफ फाइलें चुनें"}, "hint79": {"hg": "2 ya usse zyada PDF select karo", "en": "Select 2 or more PDFs", "hi": "2 या अधिक पीडीएफ चुनें"}, "h246": {"hg": "Split PDF", "en": "Split PDF", "hi": "पीडीएफ अलग करें"}, "p47": {"hg": "PDF ke har page ko alag-alag PDF file mein todo.", "en": "Break every page of a PDF into a separate PDF file.", "hi": "पीडीएफ के हर पेज को अलग-अलग पीडीएफ फाइल में तोड़ें।"}, "btn69": {"hg": "PDF File Choose Karo", "en": "Choose PDF File", "hi": "पीडीएफ फाइल चुनें"}, "h248": {"hg": "Remove Pages", "en": "Remove Pages", "hi": "पेज हटाएं"}, "p49": {"hg": "PDF se specific pages hatao, baaki file save karo.", "en": "Delete specific pages from a PDF and save the rest.", "hi": "पीडीएफ से कुछ खास पेज हटाएं, बाकी फाइल सेव करें।"}, "btn70": {"hg": "PDF File Choose Karo", "en": "Choose PDF File", "hi": "पीडीएफ फाइल चुनें"}, "h250": {"hg": "JPG/PNG to PDF", "en": "JPG/PNG to PDF", "hi": "जेपीजी/पीएनजी से पीडीएफ"}, "p51": {"hg": "Ek ya kai photos ko ek PDF file mein badlo.", "en": "Turn one or more photos into a single PDF file.", "hi": "एक या कई फोटो को एक पीडीएफ फाइल में बदलें।"}, "btn71": {"hg": "Images Choose Karo", "en": "Choose Images", "hi": "इमेज चुनें"}, "hint80": {"hg": "✨ High quality — automatic enhance", "en": "✨ High quality — automatic enhance", "hi": "✨ उच्च गुणवत्ता — स्वतः सुधार"}, "h252": {"hg": "PDF to JPG", "en": "PDF to JPG", "hi": "पीडीएफ से जेपीजी"}, "p53": {"hg": "Har PDF page ek JPG image ban jayega, high resolution mein.", "en": "Every PDF page becomes a JPG image, in high resolution.", "hi": "हर पीडीएफ पेज उच्च रिज़ॉल्यूशन में जेपीजी इमेज बन जाएगा।"}, "btn72": {"hg": "PDF File Choose Karo", "en": "Choose PDF File", "hi": "पीडीएफ फाइल चुनें"}, "hint81": {"hg": "✨ High quality — automatic enhance", "en": "✨ High quality — automatic enhance", "hi": "✨ उच्च गुणवत्ता — स्वतः सुधार"}, "h254": {"hg": "Compress PDF", "en": "Compress PDF", "hi": "पीडीएफ छोटा करें"}, "p55": {"hg": "File size chhota karo, quality achhi rakhte hue.", "en": "Shrink the file size while keeping the quality good.", "hi": "अच्छी क्वालिटी बनाए रखते हुए फाइल का साइज़ छोटा करें।"}, "btn73": {"hg": "PDF File Choose Karo", "en": "Choose PDF File", "hi": "पीडीएफ फाइल चुनें"}, "h256": {"hg": "Word to PDF", "en": "Word to PDF", "hi": "वर्ड से पीडीएफ"}, "p57": {"hg": ".docx file ko PDF mein badlo.", "en": "Convert a .docx file to PDF.", "hi": ".docx फाइल को पीडीएफ में बदलें।"}, "btn74": {"hg": "Word File Choose Karo", "en": "Choose Word File", "hi": "वर्ड फाइल चुनें"}, "h258": {"hg": "PDF to Word", "en": "PDF to Word", "hi": "पीडीएफ से वर्ड"}, "p59": {"hg": "PDF ko editable Word (.docx) file banao.", "en": "Turn a PDF into an editable Word (.docx) file.", "hi": "पीडीएफ को संपादन योग्य वर्ड (.docx) फाइल बनाएं।"}, "btn75": {"hg": "PDF File Choose Karo", "en": "Choose PDF File", "hi": "पीडीएफ फाइल चुनें"}, "h260": {"hg": "Excel to PDF", "en": "Excel to PDF", "hi": "एक्सेल से पीडीएफ"}, "p61": {"hg": ".xlsx file ko PDF mein badlo.", "en": "Convert a .xlsx file to PDF.", "hi": ".xlsx फाइल को पीडीएफ में बदलें।"}, "btn76": {"hg": "Excel File Choose Karo", "en": "Choose Excel File", "hi": "एक्सेल फाइल चुनें"}, "h262": {"hg": "PDF to Excel", "en": "PDF to Excel", "hi": "पीडीएफ से एक्सेल"}, "p63": {"hg": "PDF ke tables ko Excel mein nikalo.", "en": "Pull tables from a PDF into Excel.", "hi": "पीडीएफ की टेबल्स को एक्सेल में निकालें।"}, "btn77": {"hg": "PDF File Choose Karo", "en": "Choose PDF File", "hi": "पीडीएफ फाइल चुनें"}, "h264": {"hg": "Edit PDF", "en": "Edit PDF", "hi": "पीडीएफ संपादित करें"}, "p65": {"hg": "Jald aa raha hai — abhi banaya ja raha hai.", "en": "Coming soon — currently being built.", "hi": "जल्द आ रहा है — अभी बनाया जा रहा है।"}, "unavail82": {"hg": "PDF Editor par kaam chal raha hai — asli PDF ke text ko usi font/style mein select karke edit karna (jaisa professional PDF editors karte hain). Ye feature jald add hoga. Tab tak, is website ke baaki sab tools (Merge, Split, Compress, Word/Excel convert, aur Enhance) full working hain.", "en": "We're building a PDF Editor that lets you select and edit the PDF's own text in its original font/style, like professional PDF editors do. This feature is coming soon. Meanwhile, every other tool on this site (Merge, Split, Compress, Word/Excel convert, and Enhance) is fully working.", "hi": "पीडीएफ एडिटर पर काम चल रहा है — पीडीएफ के असली टेक्स्ट को उसी फॉन्ट/स्टाइल में चुनकर संपादित करना (जैसा प्रोफेशनल पीडीएफ एडिटर करते हैं)। यह फीचर जल्द जोड़ा जाएगा। तब तक, इस वेबसाइट के बाकी सभी टूल्स (मर्ज, स्प्लिट, कंप्रेस, वर्ड/एक्सेल कन्वर्ट, और एन्हांस) पूरी तरह काम कर रहे हैं।"}, "h266": {"hg": "Enhance Image", "en": "Enhance Image", "hi": "इमेज बेहतर करें"}, "p67": {"hg": "Halki dhundhli ya soft photo ko sharp/crisp banao — automatic high quality.", "en": "Sharpen a slightly blurry or soft photo — automatic high quality.", "hi": "हल्की धुंधली फोटो को शार्प करें — स्वतः उच्च गुणवत्ता।"}, "btn78": {"hg": "Photo Choose Karo", "en": "Choose Photo", "hi": "फोटो चुनें"}}
+;
+function setLang(lang){
+  const t = heroTranslations[lang] || heroTranslations.hg;
+  document.getElementById('heroTitle').textContent = t.heroTitle;
+  document.getElementById('heroSub').textContent = t.heroSub;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key = el.getAttribute('data-i18n');
+    const entry = uiTranslations[key];
+    if(entry) el.textContent = entry[lang] || entry.hg;
+  });
+}
+
+// ---------- FOOTER COUNTER (demo animation) ----------
+function animateCounter(id, target){
+  const el = document.getElementById(id);
+  let cur = 0;
+  const step = Math.max(1, Math.floor(target/60));
+  const iv = setInterval(()=>{
+    cur += step;
+    if(cur>=target){ cur=target; clearInterval(iv); }
+    el.textContent = cur.toLocaleString('en-IN');
+  }, 25);
+}
+animateCounter('statVisitors', 0);
+animateCounter('statConversions', 0);
+animateCounter('statStates', 0);
+animateCounter('statToday', 0);
+
+let mergeFiles=[];
+document.getElementById('mergeInput').addEventListener('change', e=>{
+  mergeFiles = mergeFiles.concat(Array.from(e.target.files));
+  renderQueue('mergeQueue', mergeFiles, 'merge');
+  document.getElementById('mergeBtn').style.display = mergeFiles.length>=2 ? 'inline-block' : 'none';
+});
+function renderQueue(elId, files, kind){
+  const el=document.getElementById(elId);
+  el.innerHTML = files.map((f,i)=>'<div class="qitem"><span>'+(i+1)+'. '+f.name+'</span><span class="rm" onclick="removeFromQueue(\''+kind+'\','+i+')">✕</span></div>').join('');
+}
+function removeFromQueue(kind, idx){
+  if(kind==='merge'){ mergeFiles.splice(idx,1); renderQueue('mergeQueue', mergeFiles,'merge'); document.getElementById('mergeBtn').style.display = mergeFiles.length>=2?'inline-block':'none'; }
+  if(kind==='img2pdf'){ img2pdfFiles.splice(idx,1); renderQueue('img2pdfQueue', img2pdfFiles,'img2pdf'); document.getElementById('img2pdfBtn').style.display = img2pdfFiles.length>=1?'inline-block':'none'; }
+}
+document.getElementById('mergeBtn').addEventListener('click', async ()=>{
+  const statusEl=document.getElementById('mergeStatus');
+  statusEl.textContent='Merge ho raha hai...';
+  try{
+    const outDoc = await PDFDocument.create();
+    for(const f of mergeFiles){
+      const bytes = await f.arrayBuffer();
+      const src = await PDFDocument.load(bytes);
+      const pages = await outDoc.copyPages(src, src.getPageIndices());
+      pages.forEach(p=>outDoc.addPage(p));
+    }
+    const finalBytes = await outDoc.save();
+    const blob = new Blob([finalBytes], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    document.getElementById('mergeResult').innerHTML = '<div class="result-item"><span>merged.pdf</span><a href="'+url+'" download="merged.pdf">Download ⬇</a></div>';
+    statusEl.textContent='Done!';
+  }catch(err){ statusEl.textContent='Error: files merge nahi ho payi.'; }
+});
+
+document.getElementById('splitInput').addEventListener('change', async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const statusEl=document.getElementById('splitStatus');
+  const resultEl=document.getElementById('splitResult');
+  resultEl.innerHTML=''; statusEl.textContent='Split ho raha hai...';
+  try{
+    const bytes = await f.arrayBuffer();
+    const src = await PDFDocument.load(bytes);
+    const count = src.getPageCount();
+    for(let i=0;i<count;i++){
+      const outDoc = await PDFDocument.create();
+      const [page] = await outDoc.copyPages(src, [i]);
+      outDoc.addPage(page);
+      const outBytes = await outDoc.save();
+      const blob = new Blob([outBytes], {type:'application/pdf'});
+      const url = URL.createObjectURL(blob);
+      const row = document.createElement('div');
+      row.className='result-item';
+      row.innerHTML = '<span>page-'+(i+1)+'.pdf</span><a href="'+url+'" download="page-'+(i+1)+'.pdf">Download ⬇</a>';
+      resultEl.appendChild(row);
+    }
+    statusEl.textContent='Done — '+count+' files ready.';
+  }catch(err){ statusEl.textContent='Error: PDF split nahi ho payi.'; }
+});
+
+let removeFileObj=null;
+document.getElementById('removeInput').addEventListener('change', e=>{
+  removeFileObj=e.target.files[0];
+  if(removeFileObj) document.getElementById('removeControls').style.display='block';
+});
+document.getElementById('removeBtn').addEventListener('click', async ()=>{
+  if(!removeFileObj) return;
+  const statusEl=document.getElementById('removeStatus');
+  const pagesStr=document.getElementById('removePages').value;
+  const toRemove = pagesStr.split(',').map(s=>parseInt(s.trim())-1).filter(n=>!isNaN(n));
+  statusEl.textContent='Process ho raha hai...';
+  try{
+    const bytes = await removeFileObj.arrayBuffer();
+    const src = await PDFDocument.load(bytes);
+    toRemove.sort((a,b)=>b-a).forEach(idx=>{ if(idx>=0 && idx<src.getPageCount()) src.removePage(idx); });
+    const outBytes = await src.save();
+    const blob = new Blob([outBytes], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    document.getElementById('removeResult').innerHTML = '<div class="result-item"><span>edited.pdf</span><a href="'+url+'" download="edited.pdf">Download ⬇</a></div>';
+    statusEl.textContent='Done!';
+  }catch(err){ statusEl.textContent='Error: pages remove nahi hue.'; }
+});
+
+let img2pdfFiles=[];
+document.getElementById('img2pdfInput').addEventListener('change', e=>{
+  img2pdfFiles = img2pdfFiles.concat(Array.from(e.target.files));
+  renderQueue('img2pdfQueue', img2pdfFiles, 'img2pdf');
+  document.getElementById('img2pdfBtn').style.display = img2pdfFiles.length>=1 ? 'inline-block' : 'none';
+});
+document.getElementById('img2pdfBtn').addEventListener('click', async ()=>{
+  const statusEl=document.getElementById('img2pdfStatus');
+  const enhance = true; // quality hamesha automatic high rakhi jaati hai
+  statusEl.textContent='PDF ban raha hai...';
+  try{
+    const outDoc = await PDFDocument.create();
+    for(const f of img2pdfFiles){
+      let embedBytes = await f.arrayBuffer();
+      let mimeType = f.type;
+      if(enhance){
+        statusEl.textContent='Enhance ho raha hai...';
+        const bmp = await createImageBitmap(new Blob([embedBytes], {type:f.type}));
+        const canvas=document.createElement('canvas');
+        canvas.width=bmp.width; canvas.height=bmp.height;
+        const ctx=canvas.getContext('2d');
+        ctx.drawImage(bmp,0,0);
+        sharpenCanvas(canvas);
+        const outMime = f.type==='image/png' ? 'image/png' : 'image/jpeg';
+        const outDataUrl = canvas.toDataURL(outMime, 0.99);
+        embedBytes = await (await fetch(outDataUrl)).arrayBuffer();
+        mimeType = outMime;
+      }
+      let img;
+      if(mimeType==='image/png') img = await outDoc.embedPng(embedBytes);
+      else img = await outDoc.embedJpg(embedBytes);
+      const page = outDoc.addPage([img.width, img.height]);
+      page.drawImage(img, {x:0, y:0, width:img.width, height:img.height});
+    }
+    const finalBytes = await outDoc.save();
+    const blob = new Blob([finalBytes], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    document.getElementById('img2pdfResult').innerHTML = '<div class="result-item"><span>images.pdf</span><a href="'+url+'" download="images.pdf">Download ⬇</a></div>';
+    statusEl.textContent='Done!';
+  }catch(err){ statusEl.textContent='Error: PDF nahi ban paya (sirf JPG/PNG chalega).'; }
+});
+
+document.getElementById('pdf2imgInput').addEventListener('change', async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const statusEl=document.getElementById('pdf2imgStatus');
+  const resultEl=document.getElementById('pdf2imgResult');
+  resultEl.innerHTML=''; statusEl.textContent='Padh raha hoon...';
+  try{
+    const buf=await f.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    for(let i=1;i<=pdf.numPages;i++){
+      statusEl.textContent='Page '+i+'/'+pdf.numPages+' process ho raha hai...';
+      const page=await pdf.getPage(i);
+      const viewport=page.getViewport({scale:2.8});
+      const canvas=document.createElement('canvas');
+      canvas.width=viewport.width; canvas.height=viewport.height;
+      const ctx=canvas.getContext('2d');
+      await page.render({canvasContext:ctx, viewport}).promise;
+      if(true){ // quality hamesha automatic high rakhi jaati hai
+        statusEl.textContent='Page '+i+'/'+pdf.numPages+' enhance ho raha hai...';
+        sharpenCanvas(canvas);
+      }
+      const dataUrl=canvas.toDataURL('image/jpeg',0.99);
+      const row=document.createElement('div');
+      row.className='result-item';
+      row.innerHTML='<span>page-'+i+'.jpg</span><a href="'+dataUrl+'" download="page-'+i+'.jpg">Download ⬇</a>';
+      resultEl.appendChild(row);
+    }
+    statusEl.textContent='Done — '+pdf.numPages+' page(s) ready. ✨ High quality mein automatically save hui.';
+  }catch(err){ statusEl.textContent='Error: PDF read nahi ho payi.'; }
+});
+
+// ---------- IMAGE ENHANCE (sharpen filter) ----------
+// Applies a light unsharp-mask style convolution to make edges/text crisper.
+// Note: this improves clarity on slightly soft images, it cannot fix heavy
+// blur or recreate detail that was never captured — that needs AI upscaling.
+function sharpenCanvas(canvas){
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const src = ctx.getImageData(0,0,w,h);
+  const dst = ctx.createImageData(w,h);
+  const kernel = [0,-0.5,0, -0.5,3,-0.5, 0,-0.5,0]; // mild sharpen kernel
+  const sd = src.data, dd = dst.data;
+  for(let y=0; y<h; y++){
+    for(let x=0; x<w; x++){
+      const i = (y*w+x)*4;
+      if(x===0||y===0||x===w-1||y===h-1){
+        dd[i]=sd[i]; dd[i+1]=sd[i+1]; dd[i+2]=sd[i+2]; dd[i+3]=sd[i+3];
+        continue;
+      }
+      for(let c=0;c<3;c++){
+        let sum=0, k=0;
+        for(let ky=-1;ky<=1;ky++){
+          for(let kx=-1;kx<=1;kx++){
+            const idx = ((y+ky)*w+(x+kx))*4+c;
+            sum += sd[idx]*kernel[k]; k++;
+          }
+        }
+        dd[i+c] = Math.max(0, Math.min(255, sum));
+      }
+      dd[i+3]=sd[i+3];
+    }
+  }
+  ctx.putImageData(dst,0,0);
+}
+
+function wireBackendTool(inputId, statusId, resultId, endpoint, outExt){
+  document.getElementById(inputId).addEventListener('change', async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const statusEl=document.getElementById(statusId);
+    statusEl.textContent='Upload ho raha hai...';
+    try{
+      const formData=new FormData(); formData.append('file', f);
+      const res=await fetch(endpoint, {method:'POST', body:formData});
+      if(!res.ok){
+        let msg = 'Server error (status '+res.status+')';
+        try{ const errJson = await res.json(); if(errJson.detail) msg += ': '+errJson.detail; else if(errJson.error) msg += ': '+errJson.error; }catch(e2){}
+        throw new Error(msg);
+      }
+      const blob=await res.blob();
+      const url=URL.createObjectURL(blob);
+      const outName=f.name.replace(/\.[^.]+$/, '.'+outExt);
+      document.getElementById(resultId).innerHTML = '<div class="result-item"><span>'+outName+'</span><a href="'+url+'" download="'+outName+'">Download ⬇</a></div>';
+      statusEl.textContent='Done!';
+    }catch(err){
+      statusEl.textContent='Error: '+err.message;
+    }
+  });
+}
+wireBackendTool('word2pdfInput','word2pdfStatus','word2pdfResult','/api/convert/word-to-pdf','pdf');
+wireBackendTool('excel2pdfInput','excel2pdfStatus','excel2pdfResult','/api/convert/excel-to-pdf','pdf');
+wireBackendTool('pdf2excelInput','pdf2excelStatus','pdf2excelResult','/api/convert/pdf-to-excel','xlsx');
+wireBackendTool('compressInput','compressStatus','compressResult','/api/compress','pdf');
+wireBackendTool('pdf2wordInput','pdf2wordStatus','pdf2wordResult','/api/convert/pdf-to-word','docx');
+
+// ---------- IMAGE ENHANCE TOOL ----------
+document.getElementById('imgenhanceInput').addEventListener('change', async e=>{
+  const files = Array.from(e.target.files);
+  if(!files.length) return;
+  const statusEl=document.getElementById('imgenhanceStatus');
+  const resultEl=document.getElementById('imgenhanceResult');
+  resultEl.innerHTML='';
+  for(let idx=0; idx<files.length; idx++){
+    const f = files[idx];
+    statusEl.textContent = 'Enhance ho raha hai ('+(idx+1)+'/'+files.length+')...';
+    try{
+      const bmp = await createImageBitmap(f);
+      const canvas = document.createElement('canvas');
+      canvas.width = bmp.width; canvas.height = bmp.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bmp,0,0);
+      sharpenCanvas(canvas);
+      const mime = f.type==='image/png' ? 'image/png' : 'image/jpeg';
+      const dataUrl = canvas.toDataURL(mime, 0.99);
+      const outName = f.name.replace(/\.[^.]+$/, '') + '-enhanced.' + (mime==='image/png'?'png':'jpg');
+      const row = document.createElement('div');
+      row.className='result-item';
+      row.innerHTML = '<span>'+outName+'</span><a href="'+dataUrl+'" download="'+outName+'">Download ⬇</a>';
+      resultEl.appendChild(row);
+    }catch(err){
+      statusEl.textContent='Error: image enhance nahi ho payi.';
+    }
+  }
+  statusEl.textContent = 'Done — '+files.length+' photo(s) ready. ✨ High quality mein automatically save hui.';
+});
+</script>
+
+</body>
+</html>

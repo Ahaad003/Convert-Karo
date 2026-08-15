@@ -96,7 +96,7 @@ function convertWithSoffice(inputBuffer, inputExt, outputExt, callback) {
 // This works well for PDFs that already look like a clean table; it won't
 // be perfect for scanned PDFs or very irregular layouts.
 async function extractPdfTableData(buffer) {
-  const loadingTask = pdfjsLib.getDocument({ data: buffer, disableFontFace: true });
+  const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer), disableFontFace: true });
   const pdf = await loadingTask.promise;
   const pages = [];
   for (let i = 1; i <= pdf.numPages; i++) {

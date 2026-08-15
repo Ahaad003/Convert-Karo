@@ -44,13 +44,21 @@ function convertWithSoffice(inputBuffer, inputExt, outputExt, callback) {
   const inputPath = path.join(tmpDir, 'input.' + inputExt);
   fs.writeFileSync(inputPath, inputBuffer);
 
-  execFile('soffice', [
+  // When the source is a PDF, LibreOffice defaults to opening it as a Draw
+  // (image/vector) document, which has no export path to docx/xlsx and fails
+  // silently. Forcing the Writer PDF-import filter makes it reconstruct the
+  // PDF as text/paragraphs instead, which CAN be exported to docx/xlsx.
+  const args = [
     '-env:UserInstallation=file://' + userInstallDir,
     '--headless',
-    '--convert-to', outputExt,
-    '--outdir', tmpDir,
-    inputPath
-  ], { timeout: 60000 }, (err, stdout, stderr) => {
+    '--norestore',
+  ];
+  if (inputExt === 'pdf') {
+    args.push('--infilter=writer_pdf_import');
+  }
+  args.push('--convert-to', outputExt, '--outdir', tmpDir, inputPath);
+
+  execFile('soffice', args, { timeout: 90000 }, (err, stdout, stderr) => {
     if (err) {
       cleanup();
       return callback(new Error((stderr || err.message || 'soffice failed').toString().slice(0, 400)));

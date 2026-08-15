@@ -51,7 +51,7 @@ app.post('/api/convert/pdf-to-word', upload.single('file'), async (req, res) => 
   const inputPath = req.file.path;
   const inputBuf = fs.readFileSync(inputPath);
 
-  libre.convert(inputBuf, '.docx', undefined, (err, done) => {
+  libre.convert(inputBuf, 'docx', undefined, (err, done) => {
     fs.unlink(inputPath, () => {}); // cleanup uploaded temp file
     if (err) {
       console.error('PDF->Word conversion error:', err);
@@ -70,7 +70,7 @@ app.post('/api/convert/word-to-pdf', upload.single('file'), async (req, res) => 
   const inputPath = req.file.path;
   const inputBuf = fs.readFileSync(inputPath);
 
-  libre.convert(inputBuf, '.pdf', undefined, (err, done) => {
+  libre.convert(inputBuf, 'pdf', undefined, (err, done) => {
     fs.unlink(inputPath, () => {});
     if (err) {
       console.error('Word->PDF conversion error:', err);
@@ -89,7 +89,7 @@ app.post('/api/convert/excel-to-pdf', upload.single('file'), async (req, res) =>
   const inputPath = req.file.path;
   const inputBuf = fs.readFileSync(inputPath);
 
-  libre.convert(inputBuf, '.pdf', undefined, (err, done) => {
+  libre.convert(inputBuf, 'pdf', undefined, (err, done) => {
     fs.unlink(inputPath, () => {});
     if (err) {
       console.error('Excel->PDF conversion error:', err);
@@ -110,7 +110,7 @@ app.post('/api/convert/pdf-to-excel', upload.single('file'), async (req, res) =>
   const inputPath = req.file.path;
   const inputBuf = fs.readFileSync(inputPath);
 
-  libre.convert(inputBuf, '.xlsx', undefined, (err, done) => {
+  libre.convert(inputBuf, 'xlsx', undefined, (err, done) => {
     fs.unlink(inputPath, () => {});
     if (err) {
       console.error('PDF->Excel conversion error:', err);

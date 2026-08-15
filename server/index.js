@@ -10,6 +10,9 @@ const cors = require('cors');
 const { execFile } = require('child_process');
 const { PDFDocument, rgb, StandardFonts, degrees } = require('pdf-lib');
 const fontkit = require('@pdf-lib/fontkit');
+const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
+const XLSX = require('xlsx');
+const JSZip = require('jszip');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -85,6 +88,104 @@ function convertWithSoffice(inputBuffer, inputExt, outputExt, callback) {
   }
 }
 
+// ---------- PDF -> Excel: real table extraction (no LibreOffice) ----------
+// LibreOffice has no PDF-import filter for Calc, so a spreadsheet can't be
+// reconstructed via soffice. Instead we read the PDF's text with its x/y
+// position on the page (via pdfjs), group nearby text into rows and columns
+// by position, and write that grid straight into an .xlsx file.
+// This works well for PDFs that already look like a clean table; it won't
+// be perfect for scanned PDFs or very irregular layouts.
+async function extractPdfTableData(buffer) {
+  const loadingTask = pdfjsLib.getDocument({ data: buffer, disableFontFace: true });
+  const pdf = await loadingTask.promise;
+  const pages = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const items = textContent.items
+      .map(it => ({ text: it.str, x: it.transform[4], y: it.transform[5] }))
+      .filter(it => it.text && it.text.trim().length > 0);
+    pages.push(items);
+  }
+  return pages;
+}
+
+function itemsToGrid(items) {
+  if (!items.length) return [[]];
+  const yTolerance = 3;
+  const rowBuckets = [];
+  items.forEach(it => {
+    let bucket = rowBuckets.find(b => Math.abs(b.y - it.y) <= yTolerance);
+    if (!bucket) { bucket = { y: it.y, items: [] }; rowBuckets.push(bucket); }
+    bucket.items.push(it);
+  });
+  rowBuckets.sort((a, b) => b.y - a.y); // PDF y grows upward, so top row first
+
+  const xTolerance = 15;
+  const xClusters = [];
+  items.forEach(it => {
+    let c = xClusters.find(c => Math.abs(c.center - it.x) <= xTolerance);
+    if (c) { c.xs.push(it.x); c.center = c.xs.reduce((a, b) => a + b, 0) / c.xs.length; }
+    else xClusters.push({ center: it.x, xs: [it.x] });
+  });
+  xClusters.sort((a, b) => a.center - b.center);
+
+  return rowBuckets.map(bucket => {
+    const cells = new Array(xClusters.length).fill('');
+    bucket.items.sort((a, b) => a.x - b.x).forEach(it => {
+      let bestIdx = 0, bestDist = Infinity;
+      xClusters.forEach((c, idx) => {
+        const d = Math.abs(c.center - it.x);
+        if (d < bestDist) { bestDist = d; bestIdx = idx; }
+      });
+      cells[bestIdx] = cells[bestIdx] ? cells[bestIdx] + ' ' + it.text : it.text;
+    });
+    return cells;
+  });
+}
+
+function gridsToXlsxBuffer(pagesGrids) {
+  const wb = XLSX.utils.book_new();
+  pagesGrids.forEach((grid, idx) => {
+    const ws = XLSX.utils.aoa_to_sheet(grid);
+    XLSX.utils.book_append_sheet(wb, ws, 'Page' + (idx + 1));
+  });
+  return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+}
+
+// ---------- Word page size (A4 / A3 / Legal) post-processing ----------
+// LibreOffice's PDF->Word reconstruction already tries to match the source
+// PDF's page size/orientation. If the person picks a specific paper size
+// instead, we rewrite the docx's page-size XML directly (docx is just a zip
+// of XML files) so the exported file uses exactly that paper size.
+const PAGE_SIZES_TWIPS = { // [width, height] in twips, portrait orientation
+  a4: [11907, 16840],
+  a3: [16840, 23811],
+  legal: [12240, 20160]
+};
+async function setDocxPageSize(docxBuffer, sizeKey) {
+  const dims = PAGE_SIZES_TWIPS[sizeKey];
+  if (!dims) return docxBuffer; // 'original' or unknown -> leave untouched
+  try {
+    const zip = await JSZip.loadAsync(docxBuffer);
+    const docFile = zip.file('word/document.xml');
+    if (!docFile) return docxBuffer;
+    let xml = await docFile.async('string');
+    const w = dims[0], h = dims[1];
+    const pgSzTag = '<w:pgSz w:w="' + w + '" w:h="' + h + '"/>';
+    if (/<w:pgSz [^\/]*\/>/.test(xml)) {
+      xml = xml.replace(/<w:pgSz [^\/]*\/>/g, pgSzTag);
+    } else if (/<w:sectPr[^>]*>/.test(xml)) {
+      xml = xml.replace(/(<w:sectPr[^>]*>)/, '$1' + pgSzTag);
+    }
+    zip.file('word/document.xml', xml);
+    return await zip.generateAsync({ type: 'nodebuffer' });
+  } catch (e) {
+    console.error('setDocxPageSize error:', e);
+    return docxBuffer; // fall back to the unmodified file rather than fail
+  }
+}
+
 // ---------- Health check ----------
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'ConvertKaro backend' });
@@ -109,16 +210,21 @@ app.post('/api/convert/pdf-to-word', upload.single('file'), async (req, res) => 
 
   const inputPath = req.file.path;
   const inputBuf = fs.readFileSync(inputPath);
+  const pageSize = (req.body && req.body.pageSize) || 'original';
 
-  convertWithSoffice(inputBuf, 'pdf', 'docx', (err, outBuf) => {
+  convertWithSoffice(inputBuf, 'pdf', 'docx', async (err, outBuf) => {
     fs.unlink(inputPath, () => {}); // cleanup uploaded temp file
     if (err) {
       console.error('PDF->Word conversion error:', err);
       return res.status(500).json({ error: 'Conversion failed', detail: err.message || String(err) });
     }
+    let finalBuf = outBuf;
+    if (pageSize !== 'original') {
+      finalBuf = await setDocxPageSize(outBuf, pageSize);
+    }
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', 'attachment; filename=converted.docx');
-    res.send(outBuf);
+    res.send(finalBuf);
   });
 });
 
@@ -160,25 +266,25 @@ app.post('/api/convert/excel-to-pdf', upload.single('file'), async (req, res) =>
   });
 });
 
-// ---------- PDF -> Excel ----------
-// NOTE: LibreOffice's PDF->XLSX conversion is basic — it works best on PDFs
-// that already contain clean tables. Complex/scanned PDFs won't extract well.
+// ---------- PDF -> Excel (real text-position based table extraction) ----------
 app.post('/api/convert/pdf-to-excel', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   const inputPath = req.file.path;
-  const inputBuf = fs.readFileSync(inputPath);
-
-  convertWithSoffice(inputBuf, 'pdf', 'xlsx', (err, outBuf) => {
+  try {
+    const inputBuf = fs.readFileSync(inputPath);
+    const pagesItems = await extractPdfTableData(inputBuf);
+    const grids = pagesItems.map(itemsToGrid);
+    const outBuf = gridsToXlsxBuffer(grids);
     fs.unlink(inputPath, () => {});
-    if (err) {
-      console.error('PDF->Excel conversion error:', err);
-      return res.status(500).json({ error: 'Conversion failed', detail: err.message || String(err) });
-    }
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename=converted.xlsx');
     res.send(outBuf);
-  });
+  } catch (err) {
+    fs.unlink(inputPath, () => {});
+    console.error('PDF->Excel extraction error:', err);
+    res.status(500).json({ error: 'Extraction failed', detail: err.message || String(err) });
+  }
 });
 
 // ---------- Compress PDF ----------

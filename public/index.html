@@ -372,6 +372,12 @@
     <div class="dropzone">
       <label class="bigbtn" for="pdf2wordInput" data-i18n="btn75">PDF File Choose Karo</label>
       <input type="file" id="pdf2wordInput" accept=".pdf" style="position:absolute;width:1px;height:1px;opacity:0;">
+      <p class="hint" style="margin-top:14px;">Page size: <select id="pdf2wordPageSize" style="padding:6px; border-radius:6px; border:1px solid var(--line);">
+        <option value="original" selected>Original (jaisa PDF mein tha)</option>
+        <option value="a4">A4</option>
+        <option value="a3">A3</option>
+        <option value="legal">Legal</option>
+      </select></p>
     </div>
     <div class="status" id="pdf2wordStatus"></div>
     <div class="resultlist" id="pdf2wordResult"></div>
@@ -392,6 +398,7 @@
     <div class="dropzone">
       <label class="bigbtn" for="pdf2excelInput" data-i18n="btn77">PDF File Choose Karo</label>
       <input type="file" id="pdf2excelInput" accept=".pdf" style="position:absolute;width:1px;height:1px;opacity:0;">
+      <p class="hint" style="margin-top:14px;">Table jaisa saaf PDF ho to best result milega</p>
     </div>
     <div class="status" id="pdf2excelStatus"></div>
     <div class="resultlist" id="pdf2excelResult"></div>
@@ -717,13 +724,17 @@ function sharpenCanvas(canvas){
   ctx.putImageData(dst,0,0);
 }
 
-function wireBackendTool(inputId, statusId, resultId, endpoint, outExt){
+function wireBackendTool(inputId, statusId, resultId, endpoint, outExt, extraFieldsFn){
   document.getElementById(inputId).addEventListener('change', async e=>{
     const f=e.target.files[0]; if(!f) return;
     const statusEl=document.getElementById(statusId);
     statusEl.textContent='Upload ho raha hai...';
     try{
       const formData=new FormData(); formData.append('file', f);
+      if(extraFieldsFn){
+        const extra = extraFieldsFn();
+        Object.keys(extra).forEach(k=>formData.append(k, extra[k]));
+      }
       const res=await fetch(endpoint, {method:'POST', body:formData});
       if(!res.ok){
         let msg = 'Server error (status '+res.status+')';
@@ -744,7 +755,9 @@ wireBackendTool('word2pdfInput','word2pdfStatus','word2pdfResult','/api/convert/
 wireBackendTool('excel2pdfInput','excel2pdfStatus','excel2pdfResult','/api/convert/excel-to-pdf','pdf');
 wireBackendTool('pdf2excelInput','pdf2excelStatus','pdf2excelResult','/api/convert/pdf-to-excel','xlsx');
 wireBackendTool('compressInput','compressStatus','compressResult','/api/compress','pdf');
-wireBackendTool('pdf2wordInput','pdf2wordStatus','pdf2wordResult','/api/convert/pdf-to-word','docx');
+wireBackendTool('pdf2wordInput','pdf2wordStatus','pdf2wordResult','/api/convert/pdf-to-word','docx', function(){
+  return { pageSize: document.getElementById('pdf2wordPageSize').value };
+});
 
 // ---------- IMAGE ENHANCE TOOL ----------
 document.getElementById('imgenhanceInput').addEventListener('change', async e=>{
